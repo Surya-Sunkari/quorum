@@ -76,3 +76,36 @@ export async function getSetting(key) {
 }
 
 export { DEFAULT_SETTINGS };
+
+/**
+ * Session state - persists question/image between popup and sidebar
+ */
+const SESSION_KEY = 'quorum_session';
+
+export async function getSessionState() {
+  return new Promise((resolve) => {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.get(SESSION_KEY, (result) => {
+        resolve(result[SESSION_KEY] || { question: '', image: null });
+      });
+    } else {
+      const stored = localStorage.getItem(SESSION_KEY);
+      resolve(stored ? JSON.parse(stored) : { question: '', image: null });
+    }
+  });
+}
+
+export async function saveSessionState(state) {
+  return new Promise((resolve) => {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({ [SESSION_KEY]: state }, resolve);
+    } else {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+      resolve();
+    }
+  });
+}
+
+export async function clearSessionState() {
+  return saveSessionState({ question: '', image: null });
+}

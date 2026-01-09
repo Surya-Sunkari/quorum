@@ -15,6 +15,12 @@ const copyExtensionFiles = () => ({
       resolve(distDir, 'manifest.json')
     );
 
+    // Copy background.js
+    const bgPath = resolve(__dirname, 'public', 'background.js');
+    if (existsSync(bgPath)) {
+      copyFileSync(bgPath, resolve(distDir, 'background.js'));
+    }
+
     // Copy icons
     const iconsDir = resolve(__dirname, 'icons');
     const distIconsDir = resolve(distDir, 'icons');

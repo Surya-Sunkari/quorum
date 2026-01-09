@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import QuestionInput from './components/QuestionInput';
 import AnswerCard from './components/AnswerCard';
 import SettingsPanel from './components/SettingsPanel';
 import LoadingState from './components/LoadingState';
 import ErrorMessage from './components/ErrorMessage';
-import { getSettings } from './utils/storage';
+import { getSettings, getSessionState, saveSessionState } from './utils/storage';
 import { askQuestion } from './utils/api';
 
 function App() {
@@ -18,15 +18,41 @@ function App() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // Load settings on mount
+  // Load settings and session state on mount
   useEffect(() => {
     getSettings().then(setSettings);
+    getSessionState().then((session) => {
+      if (session.question) setQuestion(session.question);
+      if (session.image) setImage(session.image);
+    });
   }, []);
+
+  // Save session state when question or image changes
+  useEffect(() => {
+    if (settings) {
+      saveSessionState({ question, image });
+    }
+  }, [question, image, settings]);
 
   const handleSettingsSaved = (newSettings) => {
     setSettings(newSettings);
     setShowSettings(false);
   };
+
+  const handleOpenSidebar = useCallback(async () => {
+    // Save current state before opening sidebar
+    await saveSessionState({ question, image });
+
+    // Send message to background script to open side panel
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      chrome.runtime.sendMessage({ action: 'openSidePanel' }, (response) => {
+        if (response?.success) {
+          // Close the popup after opening sidebar
+          window.close();
+        }
+      });
+    }
+  }, [question, image]);
 
   const handleAsk = async () => {
     if (!question.trim() && !image) {
@@ -92,7 +118,10 @@ function App() {
 
   return (
     <div className="flex flex-col h-full">
-      <Header onSettingsClick={() => setShowSettings(true)} />
+      <Header
+        onSettingsClick={() => setShowSettings(true)}
+        onSidebarClick={handleOpenSidebar}
+      />
 
       {showSettings ? (
         <SettingsPanel

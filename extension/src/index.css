@@ -22,8 +22,17 @@
 html, body, #root {
   width: 400px;
   min-height: 500px;
+  max-height: 600px;
   margin: 0;
   padding: 0;
+}
+
+/* Sidebar mode - full height */
+@media (min-height: 700px) {
+  html, body, #root {
+    max-height: none;
+    height: 100vh;
+  }
 }
 
 body {
