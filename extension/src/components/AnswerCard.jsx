@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import StatusBadge from './StatusBadge';
+import MathText from './MathText';
 
 function AnswerCard({ result, showDetails }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -30,9 +31,9 @@ function AnswerCard({ result, showDetails }) {
 
       {/* Answer content */}
       <div className="p-4">
-        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-          {answer}
-        </p>
+        <div className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
+          <MathText text={answer} />
+        </div>
       </div>
 
       {/* Meta info */}
@@ -111,7 +112,9 @@ function AnswerCard({ result, showDetails }) {
                           {Math.round(output.confidence * 100)}% confident
                         </span>
                       </div>
-                      <p className="text-xs text-gray-700 mb-2">{output.answer}</p>
+                      <div className="text-xs text-gray-700 mb-2">
+                        <MathText text={output.answer} />
+                      </div>
                       {output.short_rationale && (
                         <p className="text-xs text-gray-500 italic">
                           {output.short_rationale}

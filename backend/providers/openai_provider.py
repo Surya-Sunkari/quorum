@@ -15,17 +15,34 @@ class OpenAIProvider(BaseProvider):
         self.model = model
         self.client = AsyncOpenAI(api_key=api_key)
 
+    def _build_user_content(self, prompt: str, image: str | None = None) -> list | str:
+        """Build user message content, optionally with image."""
+        if not image:
+            return prompt
+
+        content = []
+        if prompt:
+            content.append({"type": "text", "text": prompt})
+
+        # Image should be a data URL like "data:image/png;base64,..."
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": image}
+        })
+        return content
+
     async def generate(
         self,
         prompt: str,
         system_prompt: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
+        image: str | None = None,
     ) -> dict[str, Any]:
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+        messages.append({"role": "user", "content": self._build_user_content(prompt, image)})
 
         response = await self.client.chat.completions.create(
             model=self.model,
@@ -49,11 +66,12 @@ class OpenAIProvider(BaseProvider):
         system_prompt: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
+        image: str | None = None,
     ) -> dict[str, Any]:
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+        messages.append({"role": "user", "content": self._build_user_content(prompt, image)})
 
         response = await self.client.chat.completions.create(
             model=self.model,

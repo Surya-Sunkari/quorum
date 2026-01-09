@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* KaTeX styles */
+@import 'katex/dist/katex.min.css';
+
 /* Base styles for extension popup */
 html, body, #root {
   width: 400px;

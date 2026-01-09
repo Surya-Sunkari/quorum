@@ -39,9 +39,9 @@ class Orchestrator:
         ]
         self.arbiter = ArbiterAgent(provider=self.provider)
 
-    async def _run_agents_parallel(self, question: str) -> list[AgentOutput]:
+    async def _run_agents_parallel(self, question: str, image: str | None = None) -> list[AgentOutput]:
         """Run all answer agents in parallel."""
-        tasks = [agent.answer(question) for agent in self.agents]
+        tasks = [agent.answer(question, image) for agent in self.agents]
         outputs = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Handle any exceptions
@@ -69,6 +69,7 @@ class Orchestrator:
         winning_answer: str,
         disagreement_summary: str,
         reconcile_instructions: str,
+        image: str | None = None,
     ) -> list[AgentOutput]:
         """Run reconciliation for all agents in parallel."""
         tasks = [
@@ -77,6 +78,7 @@ class Orchestrator:
                 winning_answer=winning_answer,
                 disagreement_summary=disagreement_summary,
                 reconcile_instructions=reconcile_instructions,
+                image=image,
             )
             for agent in self.agents
         ]
@@ -115,12 +117,13 @@ class Orchestrator:
         """
         self._setup_agents()
         question = self.request.question
+        image = self.request.image
         threshold = self.request.agreement_ratio
         max_rounds = self.request.max_rounds
 
         # Round 1: Initial answers
         current_round = 1
-        outputs = await self._run_agents_parallel(question)
+        outputs = await self._run_agents_parallel(question, image)
         self.all_outputs.append(outputs)
 
         # Arbiter evaluation
@@ -145,6 +148,7 @@ class Orchestrator:
                 winning_answer=arbiter_result.consensus_answer,
                 disagreement_summary=arbiter_result.disagreement_summary,
                 reconcile_instructions=arbiter_result.reconcile_instructions,
+                image=image,
             )
             self.all_outputs.append(outputs)
 

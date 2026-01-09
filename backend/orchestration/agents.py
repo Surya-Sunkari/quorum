@@ -4,6 +4,8 @@ from schemas.models import AgentOutput
 
 ANSWER_SYSTEM_PROMPT = """You are an independent answer agent. Your task is to answer the user's question thoughtfully and accurately.
 
+If an image is provided, analyze it carefully to answer the question. For math problems shown in images, solve them step by step.
+
 You MUST respond with valid JSON in this exact format:
 {
     "answer": "Your concise, final answer here",
@@ -50,13 +52,15 @@ class AnswerAgent:
         self.provider = provider
         self.previous_output: AgentOutput | None = None
 
-    async def answer(self, question: str) -> AgentOutput:
+    async def answer(self, question: str, image: str | None = None) -> AgentOutput:
         """Generate an answer to the question."""
+        prompt = f"Question: {question}" if question else "Please analyze this image and answer any question it contains."
         response = await self.provider.generate_json(
-            prompt=f"Question: {question}",
+            prompt=prompt,
             system_prompt=ANSWER_SYSTEM_PROMPT,
             temperature=0.7 + (self.agent_id * 0.05),  # Slight variation per agent
             max_tokens=2000,
+            image=image,
         )
 
         output = AgentOutput(
@@ -75,10 +79,11 @@ class AnswerAgent:
         winning_answer: str,
         disagreement_summary: str,
         reconcile_instructions: str,
+        image: str | None = None,
     ) -> AgentOutput:
         """Reconsider answer based on arbiter feedback."""
         if not self.previous_output:
-            return await self.answer(question)
+            return await self.answer(question, image)
 
         prompt = RECONCILIATION_PROMPT_TEMPLATE.format(
             question=question,

@@ -12,6 +12,7 @@ function App() {
   const [settings, setSettings] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [question, setQuestion] = useState('');
+  const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [result, setResult] = useState(null);
@@ -28,8 +29,8 @@ function App() {
   };
 
   const handleAsk = async () => {
-    if (!question.trim()) {
-      setError('Please enter a question');
+    if (!question.trim() && !image) {
+      setError('Please enter a question or paste an image');
       return;
     }
 
@@ -45,7 +46,7 @@ function App() {
     try {
       setLoadingMessage(`Running ${settings.n_agents} agents...`);
 
-      const response = await askQuestion(settings.backend_url, {
+      const requestBody = {
         question: question.trim(),
         n_agents: settings.n_agents,
         agreement_ratio: settings.agreement_ratio,
@@ -53,7 +54,13 @@ function App() {
         model: settings.model,
         api_key: settings.api_key,
         return_agent_outputs: settings.return_agent_outputs || settings.debug_mode,
-      });
+      };
+
+      if (image) {
+        requestBody.image = image;
+      }
+
+      const response = await askQuestion(settings.backend_url, requestBody);
 
       setLoadingMessage('Checking agreement...');
 
@@ -98,6 +105,8 @@ function App() {
           <QuestionInput
             value={question}
             onChange={setQuestion}
+            image={image}
+            onImageChange={setImage}
             onSubmit={handleAsk}
             onKeyDown={handleKeyDown}
             disabled={loading}
