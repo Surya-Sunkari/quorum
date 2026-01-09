@@ -31,3 +31,7 @@ screenshots/
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Claude Stuff
+CLAUDE.md
+PRD.md
