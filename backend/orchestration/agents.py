@@ -19,7 +19,10 @@ Rules:
 - assumptions: List any assumptions you made (can be empty array)
 - short_rationale: Keep it under 3 sentences
 - Be direct and concise in your answer
-- Think independently - do not hedge or give multiple options unless the question truly has multiple valid answers"""
+- Think independently - do not hedge or give multiple options unless the question truly has multiple valid answers
+- For math answers, use LaTeX with dollar sign delimiters: $inline$ for inline math, $$display$$ for display math
+- Example: "The answer is $\\frac{1}{2}$" or "$$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$"
+- Always escape backslashes in JSON (use \\\\ for \\)"""
 
 RECONCILIATION_PROMPT_TEMPLATE = """You previously answered a question, but there was disagreement among agents.
 

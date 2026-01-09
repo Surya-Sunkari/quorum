@@ -2,8 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* KaTeX styles */
-@import 'katex/dist/katex.min.css';
+/* Hide KaTeX MathML (accessibility) to prevent duplicate text */
+.katex-mathml {
+  display: none !important;
+  position: absolute !important;
+  clip: rect(0, 0, 0, 0) !important;
+}
+
+/* Ensure KaTeX renders inline properly */
+.katex {
+  font-size: 1.1em;
+}
+
+.katex-display {
+  margin: 0.5em 0;
+}
 
 /* Base styles for extension popup */
 html, body, #root {
