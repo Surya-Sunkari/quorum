@@ -14,7 +14,7 @@ class AskRequest(BaseModel):
     n_agents: int = Field(default=3, ge=1, le=10)
     agreement_ratio: float = Field(default=0.67, ge=0.0, le=1.0)
     max_rounds: int = Field(default=2, ge=0, le=5)
-    model: str = Field(default="openai:gpt-4o-mini")
+    model: str = Field(default="openai:gpt-4.1-mini")
     api_key: str = Field(..., min_length=1)
     return_agent_outputs: bool = Field(default=False)
 

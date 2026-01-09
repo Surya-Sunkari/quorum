@@ -1,3 +1,4 @@
+from collections import Counter
 from typing import Any
 from providers.base import BaseProvider
 from schemas.models import AgentOutput, ArbiterResult, Status
@@ -73,28 +74,37 @@ Analyze these responses and determine if consensus is reached."""
             max_tokens=2000,
         )
 
-        # Parse status
-        status_str = response.get("status", "best_effort")
-        try:
-            status = Status(status_str)
-        except ValueError:
-            status = Status.BEST_EFFORT
+        # Get cluster assignments from LLM
+        cluster_assignments = response.get("cluster_assignments", list(range(len(agent_outputs))))
 
-        # If final round and still not consensus, force best_effort
-        agreement_ratio = float(response.get("agreement_ratio", 0.0))
-        if is_final_round and agreement_ratio < agreement_threshold:
-            status = Status.BEST_EFFORT
+        # Ensure cluster_assignments has correct length
+        if len(cluster_assignments) != len(agent_outputs):
+            cluster_assignments = list(range(len(agent_outputs)))
 
-        # Override status based on actual ratio if arbiter made an error
-        if agreement_ratio >= agreement_threshold and status != Status.CONSENSUS_REACHED:
+        # Calculate agreement ratio ourselves (don't trust LLM math)
+        n_agents = len(agent_outputs)
+        if n_agents > 0 and cluster_assignments:
+            cluster_counts = Counter(cluster_assignments)
+            winning_cluster_size = max(cluster_counts.values())
+            agreement_ratio = winning_cluster_size / n_agents
+        else:
+            winning_cluster_size = 1
+            agreement_ratio = 1.0 if n_agents <= 1 else 0.0
+
+        # Determine status based on calculated ratio
+        if agreement_ratio >= agreement_threshold:
             status = Status.CONSENSUS_REACHED
+        elif is_final_round:
+            status = Status.BEST_EFFORT
+        else:
+            status = Status.NEEDS_RECONCILE
 
         return ArbiterResult(
             status=status,
             agreement_ratio=agreement_ratio,
-            winning_cluster_size=int(response.get("winning_cluster_size", 1)),
+            winning_cluster_size=winning_cluster_size,
             consensus_answer=response.get("consensus_answer", agent_outputs[0].answer if agent_outputs else ""),
             disagreement_summary=response.get("disagreement_summary", ""),
             reconcile_instructions=response.get("reconcile_instructions", ""),
-            cluster_assignments=response.get("cluster_assignments", list(range(len(agent_outputs)))),
+            cluster_assignments=cluster_assignments,
         )

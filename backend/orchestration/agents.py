@@ -6,7 +6,7 @@ ANSWER_SYSTEM_PROMPT = """You are an independent answer agent. Your task is to a
 
 You MUST respond with valid JSON in this exact format:
 {
-    "answer": "Your complete answer here",
+    "answer": "Your concise, final answer here",
     "confidence": 0.85,
     "assumptions": ["assumption 1", "assumption 2"],
     "short_rationale": "Brief 2-3 sentence explanation of your reasoning"

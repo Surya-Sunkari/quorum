@@ -143,10 +143,12 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               onChange={(e) => updateField('model', e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white"
             >
-              <option value="openai:gpt-4o-mini">GPT-4o Mini (Fast, Cheap)</option>
-              <option value="openai:gpt-4o">GPT-4o (Balanced)</option>
-              <option value="openai:gpt-4-turbo">GPT-4 Turbo</option>
-              <option value="openai:o1-mini">o1-mini (Reasoning)</option>
+              <option value="openai:gpt-4.1-mini">GPT-4.1 Mini (Fast, Cheap)</option>
+              <option value="openai:gpt-4.1">GPT-4.1</option>
+              <option value="openai:gpt-5-mini">GPT-5 Mini</option>
+              <option value="openai:gpt-5.1">GPT-5.1</option>
+              <option value="openai:gpt-5.2">GPT-5.2 (Latest)</option>
+              <option value="openai:o3-mini">o3-mini (Reasoning)</option>
             </select>
             {errors.model && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
           </div>

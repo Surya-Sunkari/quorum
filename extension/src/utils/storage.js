@@ -7,7 +7,7 @@ const DEFAULT_SETTINGS = {
   n_agents: 3,
   agreement_ratio: 0.67,
   max_rounds: 2,
-  model: 'openai:gpt-4o-mini',
+  model: 'openai:gpt-4.1-mini',
   api_key: '',
   return_agent_outputs: false,
   debug_mode: false,
