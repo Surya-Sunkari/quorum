@@ -32,8 +32,8 @@ function AnswerCard({ result, showDetails }) {
       {/* Answer content */}
       <div className="p-4">
         <div className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-          {/* <MathText text={answer} /> */}
-          {answer}
+          <MathText text={answer} />
+          {/* {answer} */}
         </div>
       </div>
 

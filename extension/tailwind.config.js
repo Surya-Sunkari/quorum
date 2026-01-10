@@ -7,6 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Quorum brand blue - based on logo color #1A8FE3
+        quorum: {
+          50: '#EBF5FF',
+          100: '#D6EBFF',
+          200: '#ADD6FF',
+          300: '#70B8F8',
+          400: '#3D9EF2',
+          500: '#1A8FE3',  // Primary brand color
+          600: '#1477C2',
+          700: '#0F5F9E',
+          800: '#0A4778',
+          900: '#063052',
+        },
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',

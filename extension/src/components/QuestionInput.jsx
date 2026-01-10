@@ -103,7 +103,7 @@ function QuestionInput({ value, onChange, image, onImageChange, onSubmit, onKeyD
         <button
           onClick={onSubmit}
           disabled={disabled || !hasContent}
-          className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium rounded-xl shadow-bubbly hover:shadow-bubbly-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+          className="px-4 py-2 bg-gradient-to-r from-quorum-500 to-quorum-600 text-white text-sm font-medium rounded-xl shadow-bubbly hover:shadow-bubbly-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
         >
           {disabled ? 'Asking...' : 'Ask'}
         </button>

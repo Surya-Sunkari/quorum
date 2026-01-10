@@ -119,7 +119,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
                 value={form.api_key}
                 onChange={(e) => updateField('api_key', e.target.value)}
                 placeholder="sk-..."
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
               />
               <button
                 onClick={handleTestKey}
@@ -141,7 +141,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
             <select
               value={form.model}
               onChange={(e) => updateField('model', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 bg-white"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
             >
               <option value="openai:gpt-4.1-mini">GPT-4.1 Mini (Fast, Cheap)</option>
               <option value="openai:gpt-4.1">GPT-4.1</option>
@@ -160,7 +160,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               value={form.backend_url}
               onChange={(e) => updateField('backend_url', e.target.value)}
               placeholder="http://localhost:5000"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
             />
             {errors.backend_url && <p className="text-xs text-red-500 mt-1">{errors.backend_url}</p>}
           </div>
@@ -179,7 +179,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
                 max="10"
                 value={form.n_agents}
                 onChange={(e) => updateField('n_agents', parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
               />
               {errors.n_agents && <p className="text-xs text-red-500 mt-1">{errors.n_agents}</p>}
             </div>
@@ -192,7 +192,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
                 max="5"
                 value={form.max_rounds}
                 onChange={(e) => updateField('max_rounds', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
               />
               {errors.max_rounds && <p className="text-xs text-red-500 mt-1">{errors.max_rounds}</p>}
             </div>
@@ -208,7 +208,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               max="100"
               value={Math.round(form.agreement_ratio * 100)}
               onChange={(e) => updateField('agreement_ratio', parseInt(e.target.value) / 100)}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-quorum-500"
             />
             <div className="flex justify-between text-xs text-gray-400 mt-1">
               <span>Any (0%)</span>
@@ -226,7 +226,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               type="checkbox"
               checked={form.debug_mode}
               onChange={(e) => updateField('debug_mode', e.target.checked)}
-              className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400"
+              className="w-4 h-4 text-quorum-500 border-gray-300 rounded focus:ring-quorum-400"
             />
             <div>
               <span className="text-sm text-gray-700">Debug Mode</span>
@@ -239,7 +239,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               type="checkbox"
               checked={form.return_agent_outputs}
               onChange={(e) => updateField('return_agent_outputs', e.target.checked)}
-              className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400"
+              className="w-4 h-4 text-quorum-500 border-gray-300 rounded focus:ring-quorum-400"
             />
             <div>
               <span className="text-sm text-gray-700">Return Agent Outputs</span>
@@ -259,7 +259,7 @@ function SettingsPanel({ settings, onSave, onCancel }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 px-4 py-2 text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl shadow-bubbly hover:shadow-bubbly-lg disabled:opacity-50 transition-all"
+            className="flex-1 px-4 py-2 text-sm text-white bg-gradient-to-r from-quorum-500 to-quorum-600 rounded-xl shadow-bubbly hover:shadow-bubbly-lg disabled:opacity-50 transition-all"
           >
             {saving ? 'Saving...' : 'Save Settings'}
           </button>

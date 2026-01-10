@@ -4,10 +4,11 @@ function Header({ onSettingsClick, onSidebarClick }) {
   return (
     <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-bubbly">
-          <span className="text-white font-bold text-lg">Q</span>
-        </div>
-        <h1 className="text-lg font-semibold text-gray-800">Quorum</h1>
+        <img src="/quorum_logo_no_text.png" alt="Quorum" className="w-10 h-10 object-contain" />
+        <h1 className="text-xl font-bold tracking-tight">
+          <span className="text-gray-800">Quo</span>
+          <span className="text-quorum-500">rum</span>
+        </h1>
       </div>
       <div className="flex items-center gap-1">
         <button

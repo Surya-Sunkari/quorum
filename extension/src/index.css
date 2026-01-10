@@ -40,23 +40,20 @@ body {
   background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
 }
 
-/* Custom scrollbar */
+/* Hide scrollbar but allow scrolling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+/* For Firefox */
+* {
+  scrollbar-width: none;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+html, body {
+  overflow-x: hidden;
 }
 
 /* Smooth transitions */
