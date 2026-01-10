@@ -32,7 +32,8 @@ function AnswerCard({ result, showDetails }) {
       {/* Answer content */}
       <div className="p-4">
         <div className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-          <MathText text={answer} />
+          {/* <MathText text={answer} /> */}
+          {answer}
         </div>
       </div>
 
@@ -116,9 +117,9 @@ function AnswerCard({ result, showDetails }) {
                         <MathText text={output.answer} />
                       </div>
                       {output.short_rationale && (
-                        <p className="text-xs text-gray-500 italic">
-                          {output.short_rationale}
-                        </p>
+                        <div className="text-xs text-gray-500 italic">
+                          <MathText text={output.short_rationale} />
+                        </div>
                       )}
                     </div>
                   ))}
