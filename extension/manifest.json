@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Quorum",
   "version": "1.0.0",
-  "description": "Get consensus-based answers from multiple AI agents",
+  "description": "Get consensus-based answers from multiple AI agents.",
   "permissions": [
     "storage",
     "sidePanel"
