@@ -8,12 +8,19 @@ from .base import BaseProvider
 class OpenAIProvider(BaseProvider):
     """OpenAI provider implementation."""
 
+    # Models that require max_completion_tokens instead of max_tokens
+    NEW_API_MODELS = ("gpt-5", "o3", "o1")
+
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         # Extract model name from "openai:model-name" format
         if model.startswith("openai:"):
             model = model[7:]
         self.model = model
         self.client = AsyncOpenAI(api_key=api_key)
+
+    def _uses_new_token_param(self) -> bool:
+        """Check if this model requires max_completion_tokens instead of max_tokens."""
+        return any(self.model.startswith(prefix) for prefix in self.NEW_API_MODELS)
 
     def _build_user_content(self, prompt: str, image: str | None = None) -> list | str:
         """Build user message content, optionally with image."""
@@ -44,11 +51,14 @@ class OpenAIProvider(BaseProvider):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": self._build_user_content(prompt, image)})
 
+        # Use appropriate token parameter based on model
+        token_param = "max_completion_tokens" if self._uses_new_token_param() else "max_tokens"
+
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=temperature,
-            max_tokens=max_tokens,
+            **{token_param: max_tokens},
         )
 
         return {
@@ -73,12 +83,15 @@ class OpenAIProvider(BaseProvider):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": self._build_user_content(prompt, image)})
 
+        # Use appropriate token parameter based on model
+        token_param = "max_completion_tokens" if self._uses_new_token_param() else "max_tokens"
+
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=temperature,
-            max_tokens=max_tokens,
             response_format={"type": "json_object"},
+            **{token_param: max_tokens},
         )
 
         content = response.choices[0].message.content

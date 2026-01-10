@@ -4,23 +4,24 @@ from schemas.models import AgentOutput
 
 ANSWER_SYSTEM_PROMPT = """You are an independent answer agent. Your task is to answer the user's question thoughtfully and accurately.
 
-If an image is provided, analyze it carefully to answer the question. For math problems shown in images, solve them step by step.
+If an image is provided, analyze it carefully to answer the question.
+
+CRITICAL: For math, logic, or technical problems, you MUST show your complete step-by-step work in the rationale field. Do not skip steps. Verify your answer by checking it against the original problem before responding.
 
 You MUST respond with valid JSON in this exact format:
 {
-    "answer": "Your concise, final answer here",
+    "answer": "Your final answer here (e.g., the letter choice, number, or short result)",
     "confidence": 0.85,
     "assumptions": ["assumption 1", "assumption 2"],
-    "short_rationale": "Brief 2-3 sentence explanation of your reasoning"
+    "rationale": "Your detailed step-by-step reasoning. For math: show all algebraic steps, substitutions, and verifications. For multiple choice: explain why each option is or is not correct."
 }
 
 Rules:
-- confidence: A float between 0 and 1 indicating how confident you are in your answer
+- confidence: A float between 0 and 1 indicating how confident you are
 - assumptions: List any assumptions you made (can be empty array)
-- short_rationale: Keep it under 3 sentences
-- Be direct and concise in your answer
-- Think independently - do not hedge or give multiple options unless the question truly has multiple valid answers
-- Make sure to think through the question and answer carefully.
+- rationale: Show your complete work. For complex problems, this should be thorough - do not truncate your reasoning
+- Think independently - do not hedge or give multiple options unless truly ambiguous
+- Double-check your calculations before finalizing
 - For math answers, use LaTeX with dollar sign delimiters: $inline$ for inline math, $$display$$ for display math
 - Example: "The answer is $\\frac{1}{2}$" or "$$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$"
 - Always escape backslashes in JSON (use \\\\ for \\)"""
@@ -37,15 +38,15 @@ Disagreement summary: {disagreement_summary}
 
 Instructions from arbiter: {reconcile_instructions}
 
-Please reconsider your answer in light of this feedback. If you still believe your original answer is correct, explain why. If you now agree with the consensus, update your answer.
+Please reconsider your answer carefully. Re-work the problem from scratch if needed. If you still believe your original answer is correct after re-checking, explain why with detailed reasoning. If you find an error in your previous work, correct it.
 
 Respond with valid JSON in the same format:
-{
+{{
     "answer": "Your updated answer",
     "confidence": 0.85,
     "assumptions": [],
-    "short_rationale": "Why you updated or maintained your answer"
-}"""
+    "rationale": "Show your re-worked solution and explain why you updated or maintained your answer"
+}}"""
 
 
 class AnswerAgent:
@@ -62,8 +63,8 @@ class AnswerAgent:
         response = await self.provider.generate_json(
             prompt=prompt,
             system_prompt=ANSWER_SYSTEM_PROMPT,
-            temperature=0.7 + (self.agent_id * 0.05),  # Slight variation per agent
-            max_tokens=2000,
+            temperature=0.3 + (self.agent_id * 0.02),  # Low temp for accuracy, slight variation
+            max_tokens=4000,  # Allow thorough reasoning
             image=image,
         )
 
@@ -72,7 +73,7 @@ class AnswerAgent:
             answer=response.get("answer", ""),
             confidence=min(1.0, max(0.0, float(response.get("confidence", 0.5)))),
             assumptions=response.get("assumptions", []),
-            short_rationale=response.get("short_rationale", ""),
+            short_rationale=response.get("rationale", response.get("short_rationale", "")),
         )
         self.previous_output = output
         return output
@@ -100,8 +101,8 @@ class AnswerAgent:
         response = await self.provider.generate_json(
             prompt=prompt,
             system_prompt=ANSWER_SYSTEM_PROMPT,
-            temperature=0.5,  # Lower temperature for reconciliation
-            max_tokens=2000,
+            temperature=0.2,  # Very low temperature for reconciliation accuracy
+            max_tokens=4000,
         )
 
         output = AgentOutput(
@@ -109,7 +110,7 @@ class AnswerAgent:
             answer=response.get("answer", ""),
             confidence=min(1.0, max(0.0, float(response.get("confidence", 0.5)))),
             assumptions=response.get("assumptions", []),
-            short_rationale=response.get("short_rationale", ""),
+            short_rationale=response.get("rationale", response.get("short_rationale", "")),
         )
         self.previous_output = output
         return output

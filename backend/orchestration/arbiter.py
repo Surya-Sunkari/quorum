@@ -3,16 +3,18 @@ from typing import Any
 from providers.base import BaseProvider
 from schemas.models import AgentOutput, ArbiterResult, Status
 
-ARBITER_SYSTEM_PROMPT = """You are an arbiter agent. Your task is to analyze multiple answers from independent agents and determine if they agree.
+ARBITER_SYSTEM_PROMPT = """You are an arbiter agent. Your task is to analyze multiple answers from independent agents, verify their reasoning, and determine consensus.
+
+CRITICAL: For math/logic problems, you must VERIFY the correctness of each agent's work, not just count votes. An answer backed by flawed reasoning should not win just because it's popular.
 
 You MUST respond with valid JSON in this exact format:
 {
     "status": "consensus_reached" | "needs_reconcile" | "best_effort",
     "agreement_ratio": 0.67,
     "winning_cluster_size": 2,
-    "consensus_answer": "The best answer from the winning cluster",
-    "disagreement_summary": "Brief summary of key disagreements (if any)",
-    "reconcile_instructions": "Instructions for agents to reconcile (if needed)",
+    "consensus_answer": "The best CORRECT answer, verified by checking the reasoning",
+    "disagreement_summary": "Brief summary of key disagreements and any errors found",
+    "reconcile_instructions": "Specific instructions pointing out errors in reasoning if found",
     "cluster_assignments": [0, 0, 1]
 }
 
@@ -23,14 +25,20 @@ Rules for clustering:
 - cluster_assignments: Array mapping each agent (by index) to a cluster number (0, 1, 2, etc.)
 - agreement_ratio = size of largest cluster / total number of agents
 
+IMPORTANT for math/technical questions:
+- Review each agent's step-by-step work for errors
+- If a minority agent has correct reasoning and the majority has errors, note this in disagreement_summary
+- The consensus_answer should be the CORRECT answer, even if fewer agents got it right
+- In reconcile_instructions, point out specific calculation errors
+
 Status rules:
 - "consensus_reached": agreement_ratio >= threshold (provided in prompt)
 - "needs_reconcile": agreement_ratio < threshold AND reconciliation may help
 - "best_effort": Only use after reconciliation attempts when consensus still not reached
 
 For reconcile_instructions:
-- Be specific about what the minority agents should reconsider
-- Reference the winning cluster's reasoning"""
+- Be specific about what errors agents made
+- Show the correct approach if you identified one"""
 
 
 class ArbiterAgent:
