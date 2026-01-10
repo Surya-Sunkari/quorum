@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-function ErrorMessage({ message, onDismiss }) {
+function ErrorMessage({ message, details, onDismiss }) {
+  const [showDetails, setShowDetails] = useState(false);
+
   return (
     <div className="bg-red-50 rounded-2xl shadow-bubbly p-4 border border-red-100">
       <div className="flex items-start gap-3">
@@ -17,8 +19,23 @@ function ErrorMessage({ message, onDismiss }) {
             />
           </svg>
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <p className="text-sm text-red-700">{message}</p>
+          {details && (
+            <>
+              <button
+                onClick={() => setShowDetails(!showDetails)}
+                className="text-xs text-red-500 hover:text-red-700 mt-1 underline"
+              >
+                {showDetails ? 'Hide details' : 'Show details'}
+              </button>
+              {showDetails && (
+                <pre className="mt-2 text-xs text-red-600 bg-red-100 p-2 rounded-lg overflow-x-auto max-h-40 overflow-y-auto whitespace-pre-wrap break-words">
+                  {typeof details === 'string' ? details : JSON.stringify(details, null, 2)}
+                </pre>
+              )}
+            </>
+          )}
         </div>
         <button
           onClick={onDismiss}

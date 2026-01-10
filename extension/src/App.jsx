@@ -17,6 +17,7 @@ function App() {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [errorDetails, setErrorDetails] = useState(null);
 
   // Load settings and session state on mount
   useEffect(() => {
@@ -67,6 +68,7 @@ function App() {
 
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
     setResult(null);
 
     try {
@@ -96,6 +98,10 @@ function App() {
       setResult(response);
     } catch (err) {
       setError(err.message || 'Failed to get response');
+      // Capture detailed error info if available
+      if (err.details) {
+        setErrorDetails(err.details);
+      }
     } finally {
       setLoading(false);
       setLoadingMessage('');
@@ -144,7 +150,14 @@ function App() {
           {loading && <LoadingState message={loadingMessage} />}
 
           {error && (
-            <ErrorMessage message={error} onDismiss={() => setError(null)} />
+            <ErrorMessage
+              message={error}
+              details={errorDetails}
+              onDismiss={() => {
+                setError(null);
+                setErrorDetails(null);
+              }}
+            />
           )}
 
           {result && (

@@ -33,5 +33,5 @@ htmlcov/
 .pytest_cache/
 
 # Claude Stuff
-CLAUDE.md
+# CLAUDE.md
 PRD.md

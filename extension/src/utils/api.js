@@ -18,8 +18,11 @@ export async function askQuestion(backendUrl, params) {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || error.details || `HTTP ${response.status}`);
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+    const error = new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
+    // Attach detailed error info for debugging
+    error.details = errorData;
+    throw error;
   }
 
   return response.json();

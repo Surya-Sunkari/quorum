@@ -108,14 +108,24 @@ def ask():
         return jsonify(response.model_dump())
 
     except Exception as e:
-        # Never log the API key - sanitize error messages
+        import traceback
         error_msg = str(e)
-        if "api_key" in error_msg.lower() or "sk-" in error_msg:
+        error_type = type(e).__name__
+
+        # Get traceback but sanitize API keys
+        tb = traceback.format_exc()
+        if "sk-" in tb:
+            tb = "Traceback hidden (contains API key)"
+
+        # Sanitize error message
+        if "sk-" in error_msg:
             error_msg = "Authentication error - please check your API key"
 
         return jsonify({
             "error": "Failed to process request",
-            "details": error_msg
+            "error_type": error_type,
+            "details": error_msg,
+            "traceback": tb
         }), 500
 
 
