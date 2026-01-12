@@ -29,7 +29,8 @@ class GeminiProvider(BaseProvider):
             parts.append(types.Part.from_bytes(data=image_bytes, mime_type=mime_type))
 
         if prompt:
-            parts.append(types.Part.from_text(prompt))
+            # In new SDK, just append strings directly or use Part with text kwarg
+            parts.append(prompt)
 
         return parts
 

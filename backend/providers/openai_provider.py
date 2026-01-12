@@ -22,6 +22,10 @@ class OpenAIProvider(BaseProvider):
         """Check if this model requires max_completion_tokens instead of max_tokens."""
         return any(self.model.startswith(prefix) for prefix in self.NEW_API_MODELS)
 
+    def _supports_temperature(self) -> bool:
+        """Check if this model supports custom temperature."""
+        return self.model != "gpt-5-mini"
+
     def _build_user_content(self, prompt: str, image: str | None = None) -> list | str:
         """Build user message content, optionally with image."""
         if not image:
@@ -54,12 +58,15 @@ class OpenAIProvider(BaseProvider):
         # Use appropriate token parameter based on model
         token_param = "max_completion_tokens" if self._uses_new_token_param() else "max_tokens"
 
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            **{token_param: max_tokens},
-        )
+        kwargs = {
+            "model": self.model,
+            "messages": messages,
+            token_param: max_tokens,
+        }
+        if self._supports_temperature():
+            kwargs["temperature"] = temperature
+
+        response = await self.client.chat.completions.create(**kwargs)
 
         return {
             "content": response.choices[0].message.content,
@@ -86,13 +93,16 @@ class OpenAIProvider(BaseProvider):
         # Use appropriate token parameter based on model
         token_param = "max_completion_tokens" if self._uses_new_token_param() else "max_tokens"
 
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            response_format={"type": "json_object"},
-            **{token_param: max_tokens},
-        )
+        kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "response_format": {"type": "json_object"},
+            token_param: max_tokens,
+        }
+        if self._supports_temperature():
+            kwargs["temperature"] = temperature
+
+        response = await self.client.chat.completions.create(**kwargs)
 
         content = response.choices[0].message.content
         try:

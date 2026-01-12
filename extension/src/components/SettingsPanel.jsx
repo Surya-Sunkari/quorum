@@ -151,8 +151,8 @@ function SettingsPanel({ settings, onSave, onCancel }) {
                 <option value="anthropic:claude-haiku-4-5-20251001" disabled={!hasApiKey('anthropic')}>Claude Haiku 3.5 (Fast)</option>
               </optgroup>
               <optgroup label={`Google${!hasApiKey('gemini') ? ' (No API Key)' : ''}`}>
-                <option value="gemini:gemini-3.0-pro" disabled={!hasApiKey('gemini')}>Gemini 3 Pro</option>
-                <option value="gemini:gemini-3.0-flash" disabled={!hasApiKey('gemini')}>Gemini 3 Flash</option>
+                <option value="gemini:gemini-3-pro-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Pro</option>
+                <option value="gemini:gemini-3-flash-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Flash</option>
                 <option value="gemini:gemini-2.5-flash" disabled={!hasApiKey('gemini')}>Gemini 2.5 Flash (Fast)</option>
               </optgroup>
             </select>
