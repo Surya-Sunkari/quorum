@@ -3,16 +3,74 @@
  * Uses chrome.storage.local for persistence.
  */
 
+// Hosted backend configuration (from environment or defaults)
+const HOSTED_CONFIG = {
+  backend_url: import.meta.env.VITE_HOSTED_BACKEND_URL || 'http://localhost:5000',
+  api_keys: {
+    openai: import.meta.env.VITE_HOSTED_OPENAI_API_KEY || '',
+    anthropic: import.meta.env.VITE_HOSTED_ANTHROPIC_API_KEY || '',
+    gemini: import.meta.env.VITE_HOSTED_GEMINI_API_KEY || '',
+  },
+};
+
+/**
+ * Get the provider name from a model string.
+ * @param {string} model - Model string in format "provider:model-name"
+ * @returns {string} Provider name (openai, anthropic, gemini)
+ */
+export function getProviderFromModel(model) {
+  if (model.startsWith('openai:')) return 'openai';
+  if (model.startsWith('anthropic:')) return 'anthropic';
+  if (model.startsWith('gemini:')) return 'gemini';
+  return 'openai'; // Default fallback
+}
+
+/**
+ * Get the appropriate API key for a model from hosted config.
+ * @param {string} model - Model string in format "provider:model-name"
+ * @returns {string} API key for the provider
+ */
+export function getHostedApiKey(model) {
+  const provider = getProviderFromModel(model);
+  return HOSTED_CONFIG.api_keys[provider] || '';
+}
+
 const DEFAULT_SETTINGS = {
   n_agents: 3,
   agreement_ratio: 0.67,
   max_rounds: 2,
   model: 'openai:gpt-4.1-mini',
-  api_key: '',
+  // Provider-specific API keys
+  openai_api_key: '',
+  anthropic_api_key: '',
+  gemini_api_key: '',
   return_agent_outputs: false,
   debug_mode: false,
   backend_url: 'http://localhost:5000',
+  use_hosted_backend: true, // Default to hosted mode for regular users
 };
+
+/**
+ * Get the user's API key for a specific provider.
+ * @param {object} settings - User settings object
+ * @param {string} model - Model string in format "provider:model-name"
+ * @returns {string} API key for the provider
+ */
+export function getUserApiKey(settings, model) {
+  const provider = getProviderFromModel(model);
+  switch (provider) {
+    case 'openai':
+      return settings.openai_api_key || '';
+    case 'anthropic':
+      return settings.anthropic_api_key || '';
+    case 'gemini':
+      return settings.gemini_api_key || '';
+    default:
+      return '';
+  }
+}
+
+export { HOSTED_CONFIG };
 
 /**
  * Get all settings from storage.

@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 from schemas.models import AskRequest, AskResponse
 from orchestration.orchestrator import Orchestrator
-from providers.openai_provider import OpenAIProvider
+from providers import get_provider
 
 load_dotenv()
 
@@ -32,19 +32,29 @@ def health():
 
 @app.route("/validate-key", methods=["POST"])
 def validate_key():
-    """Validate an OpenAI API key."""
+    """Validate an API key for any supported provider."""
     data = request.get_json()
     if not data:
         return jsonify({"error": "Request body required"}), 400
 
     api_key = data.get("api_key")
-    model = data.get("model", "openai:gpt-4o-mini")
+    provider_name = data.get("provider", "openai")
 
     if not api_key:
         return jsonify({"error": "api_key is required"}), 400
 
+    # Map provider name to a dummy model string for get_provider
+    provider_models = {
+        "openai": "openai:gpt-4.1-mini",
+        "anthropic": "anthropic:claude-3-5-haiku-20241022",
+        "gemini": "gemini:gemini-2.0-flash",
+    }
+
+    if provider_name not in provider_models:
+        return jsonify({"valid": False, "error": f"Unknown provider: {provider_name}"}), 400
+
     try:
-        provider = OpenAIProvider(api_key=api_key, model=model)
+        provider = get_provider(model=provider_models[provider_name], api_key=api_key)
         # Run async validation in sync context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)

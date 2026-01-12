@@ -28,8 +28,9 @@ class AskRequest(BaseModel):
     @field_validator("model")
     @classmethod
     def validate_model(cls, v: str) -> str:
-        if not v.startswith("openai:"):
-            raise ValueError("Model must start with 'openai:' (e.g., 'openai:gpt-4o-mini')")
+        valid_prefixes = ("openai:", "anthropic:", "gemini:")
+        if not any(v.startswith(prefix) for prefix in valid_prefixes):
+            raise ValueError("Model must start with 'openai:', 'anthropic:', or 'gemini:'")
         return v
 
 

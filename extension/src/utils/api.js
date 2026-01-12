@@ -32,17 +32,17 @@ export async function askQuestion(backendUrl, params) {
  * Validate an API key with the backend.
  * @param {string} backendUrl - Backend URL
  * @param {string} apiKey - API key to validate
- * @param {string} model - Model to validate against
+ * @param {string} provider - Provider name (openai, anthropic, gemini)
  * @returns {Promise<{valid: boolean, error?: string}>}
  */
-export async function validateApiKey(backendUrl, apiKey, model) {
+export async function validateApiKey(backendUrl, apiKey, provider) {
   try {
     const response = await fetch(`${backendUrl}/validate-key`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ api_key: apiKey, model }),
+      body: JSON.stringify({ api_key: apiKey, provider }),
     });
 
     return response.json();

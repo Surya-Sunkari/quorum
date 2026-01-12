@@ -5,7 +5,7 @@ import AnswerCard from './components/AnswerCard';
 import SettingsPanel from './components/SettingsPanel';
 import LoadingState from './components/LoadingState';
 import ErrorMessage from './components/ErrorMessage';
-import { getSettings, getSessionState, saveSessionState } from './utils/storage';
+import { getSettings, getSessionState, saveSessionState, HOSTED_CONFIG, getHostedApiKey, getUserApiKey } from './utils/storage';
 import { askQuestion } from './utils/api';
 
 function App() {
@@ -61,8 +61,13 @@ function App() {
       return;
     }
 
-    if (!settings.api_key) {
-      setError('Please configure your API key in settings');
+    // Determine which backend and API key to use
+    const useHosted = settings.use_hosted_backend;
+    const backendUrl = useHosted ? HOSTED_CONFIG.backend_url : settings.backend_url;
+    const apiKey = useHosted ? getHostedApiKey(settings.model) : getUserApiKey(settings, settings.model);
+
+    if (!useHosted && !apiKey) {
+      setError('Please configure the API key for the selected model provider in settings');
       return;
     }
 
@@ -80,7 +85,7 @@ function App() {
         agreement_ratio: settings.agreement_ratio,
         max_rounds: settings.max_rounds,
         model: settings.model,
-        api_key: settings.api_key,
+        api_key: apiKey,
         return_agent_outputs: settings.return_agent_outputs || settings.debug_mode,
       };
 
@@ -88,7 +93,7 @@ function App() {
         requestBody.image = image;
       }
 
-      const response = await askQuestion(settings.backend_url, requestBody);
+      const response = await askQuestion(backendUrl, requestBody);
 
       setLoadingMessage('Checking agreement...');
 

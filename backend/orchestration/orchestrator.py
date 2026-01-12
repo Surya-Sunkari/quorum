@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 from providers.base import BaseProvider
-from providers.openai_provider import OpenAIProvider
+from providers import get_provider
 from schemas.models import AskRequest, AskResponse, AgentOutput, Status
 from .agents import AnswerAgent
 from .arbiter import ArbiterAgent
@@ -22,14 +22,7 @@ class Orchestrator:
 
     def _create_provider(self) -> BaseProvider:
         """Create the appropriate provider based on model string."""
-        model = self.request.model
-        if model.startswith("openai:"):
-            return OpenAIProvider(
-                api_key=self.request.api_key,
-                model=model,
-            )
-        else:
-            raise ValueError(f"Unsupported model provider: {model}")
+        return get_provider(model=self.request.model, api_key=self.request.api_key)
 
     def _setup_agents(self) -> None:
         """Initialize answer agents and arbiter."""

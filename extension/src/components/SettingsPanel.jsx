@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { saveSettings, resetSettings, DEFAULT_SETTINGS } from '../utils/storage';
+import { saveSettings, resetSettings, DEFAULT_SETTINGS, HOSTED_CONFIG, getProviderFromModel } from '../utils/storage';
 import { validateApiKey, checkBackendHealth } from '../utils/api';
 
 function SettingsPanel({ settings, onSave, onCancel }) {
   const [form, setForm] = useState({ ...settings });
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null);
+  const [testing, setTesting] = useState({}); // Track testing state per provider
+  const [testResults, setTestResults] = useState({}); // Track test results per provider
   const [errors, setErrors] = useState({});
+  const [devSettingsOpen, setDevSettingsOpen] = useState(false);
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -29,16 +30,33 @@ function SettingsPanel({ settings, onSave, onCancel }) {
       newErrors.max_rounds = 'Must be between 0 and 5';
     }
 
-    if (!form.model.startsWith('openai:')) {
-      newErrors.model = 'Must start with "openai:"';
+    const validPrefixes = ['openai:', 'anthropic:', 'gemini:'];
+    if (!validPrefixes.some((prefix) => form.model.startsWith(prefix))) {
+      newErrors.model = 'Invalid model format';
     }
 
-    if (!form.backend_url) {
+    // Only validate backend_url if not using hosted backend
+    if (!form.use_hosted_backend && !form.backend_url) {
       newErrors.backend_url = 'Backend URL is required';
+    }
+
+    // Validate API key for selected provider if not using hosted backend
+    if (!form.use_hosted_backend) {
+      const provider = getProviderFromModel(form.model);
+      const apiKeyField = `${provider}_api_key`;
+      if (!form[apiKeyField]) {
+        newErrors[apiKeyField] = `${provider.charAt(0).toUpperCase() + provider.slice(1)} API key is required for selected model`;
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Check if a provider has an API key configured
+  const hasApiKey = (provider) => {
+    if (form.use_hosted_backend) return true;
+    return !!form[`${provider}_api_key`];
   };
 
   const handleSave = async () => {
@@ -62,32 +80,34 @@ function SettingsPanel({ settings, onSave, onCancel }) {
     }
   };
 
-  const handleTestKey = async () => {
-    if (!form.api_key) {
-      setTestResult({ valid: false, error: 'Please enter an API key' });
+  // Test a specific provider's API key
+  const handleTestKey = async (provider) => {
+    const apiKey = form[`${provider}_api_key`];
+    if (!apiKey) {
+      setTestResults((prev) => ({ ...prev, [provider]: { valid: false, error: 'Please enter an API key' } }));
       return;
     }
 
-    setTesting(true);
-    setTestResult(null);
+    setTesting((prev) => ({ ...prev, [provider]: true }));
+    setTestResults((prev) => ({ ...prev, [provider]: null }));
 
     try {
       // First check if backend is reachable
       const backendOk = await checkBackendHealth(form.backend_url);
       if (!backendOk) {
-        setTestResult({
-          valid: false,
-          error: 'Cannot reach backend. Is it running?',
-        });
+        setTestResults((prev) => ({
+          ...prev,
+          [provider]: { valid: false, error: 'Cannot reach backend. Is it running?' },
+        }));
         return;
       }
 
-      const result = await validateApiKey(form.backend_url, form.api_key, form.model);
-      setTestResult(result);
+      const result = await validateApiKey(form.backend_url, apiKey, provider);
+      setTestResults((prev) => ({ ...prev, [provider]: result }));
     } catch (err) {
-      setTestResult({ valid: false, error: err.message });
+      setTestResults((prev) => ({ ...prev, [provider]: { valid: false, error: err.message } }));
     } finally {
-      setTesting(false);
+      setTesting((prev) => ({ ...prev, [provider]: false }));
     }
   };
 
@@ -107,34 +127,9 @@ function SettingsPanel({ settings, onSave, onCancel }) {
           </button>
         </div>
 
-        {/* API Key */}
+        {/* Agent Configuration */}
         <div className="bg-white rounded-2xl shadow-bubbly p-4 space-y-3">
-          <h3 className="text-sm font-medium text-gray-700">API Configuration</h3>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">OpenAI API Key</label>
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={form.api_key}
-                onChange={(e) => updateField('api_key', e.target.value)}
-                placeholder="sk-..."
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-              />
-              <button
-                onClick={handleTestKey}
-                disabled={testing}
-                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
-              >
-                {testing ? '...' : 'Test'}
-              </button>
-            </div>
-            {testResult && (
-              <p className={`text-xs mt-1 ${testResult.valid ? 'text-green-600' : 'text-red-500'}`}>
-                {testResult.valid ? 'API key is valid!' : testResult.error}
-              </p>
-            )}
-          </div>
+          <h3 className="text-sm font-medium text-gray-700">Agent Configuration</h3>
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">Model</label>
@@ -143,32 +138,26 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               onChange={(e) => updateField('model', e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
             >
-              <option value="openai:gpt-4.1-mini">GPT-4.1 Mini (Fast, Cheap)</option>
-              <option value="openai:gpt-4.1">GPT-4.1</option>
-              <option value="openai:gpt-5-mini">GPT-5 Mini</option>
-              <option value="openai:gpt-5.1">GPT-5.1</option>
-              <option value="openai:gpt-5.2">GPT-5.2 (Latest)</option>
-              <option value="openai:o3-mini">o3-mini (Reasoning)</option>
+              <optgroup label={`OpenAI${!hasApiKey('openai') ? ' (No API Key)' : ''}`}>
+                <option value="openai:gpt-4.1-mini" disabled={!hasApiKey('openai')}>GPT-4.1 Mini (Fast)</option>
+                <option value="openai:gpt-4.1" disabled={!hasApiKey('openai')}>GPT-4.1</option>
+                <option value="openai:gpt-5-mini" disabled={!hasApiKey('openai')}>GPT-5 Mini</option>
+                <option value="openai:gpt-5.1" disabled={!hasApiKey('openai')}>GPT-5.1</option>
+                <option value="openai:gpt-5.2" disabled={!hasApiKey('openai')}>GPT-5.2 (Latest)</option>
+              </optgroup>
+              <optgroup label={`Anthropic${!hasApiKey('anthropic') ? ' (No API Key)' : ''}`}>
+                <option value="anthropic:claude-opus-4-5-20251101" disabled={!hasApiKey('anthropic')}>Claude Opus 4</option>
+                <option value="anthropic:claude-sonnet-4-5-20250929" disabled={!hasApiKey('anthropic')}>Claude Sonnet 4</option>
+                <option value="anthropic:claude-haiku-4-5-20251001" disabled={!hasApiKey('anthropic')}>Claude Haiku 3.5 (Fast)</option>
+              </optgroup>
+              <optgroup label={`Google${!hasApiKey('gemini') ? ' (No API Key)' : ''}`}>
+                <option value="gemini:gemini-3.0-pro" disabled={!hasApiKey('gemini')}>Gemini 3 Pro</option>
+                <option value="gemini:gemini-3.0-flash" disabled={!hasApiKey('gemini')}>Gemini 3 Flash</option>
+                <option value="gemini:gemini-2.5-flash" disabled={!hasApiKey('gemini')}>Gemini 2.5 Flash (Fast)</option>
+              </optgroup>
             </select>
             {errors.model && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
           </div>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Backend URL</label>
-            <input
-              type="text"
-              value={form.backend_url}
-              onChange={(e) => updateField('backend_url', e.target.value)}
-              placeholder="http://localhost:5000"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-            />
-            {errors.backend_url && <p className="text-xs text-red-500 mt-1">{errors.backend_url}</p>}
-          </div>
-        </div>
-
-        {/* Agent Settings */}
-        <div className="bg-white rounded-2xl shadow-bubbly p-4 space-y-3">
-          <h3 className="text-sm font-medium text-gray-700">Agent Configuration</h3>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -246,6 +235,154 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               <p className="text-xs text-gray-400">Include individual agent responses</p>
             </div>
           </label>
+        </div>
+
+        {/* Developer Settings (Collapsible) */}
+        <div className="bg-white rounded-2xl shadow-bubbly overflow-hidden">
+          <button
+            onClick={() => setDevSettingsOpen(!devSettingsOpen)}
+            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <h3 className="text-sm font-medium text-gray-700">Developer Settings</h3>
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${devSettingsOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {devSettingsOpen && (
+            <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
+              {/* Hosted Backend Toggle */}
+              <div className="pt-3 flex items-center justify-between">
+                <div>
+                  <span className="text-sm text-gray-700">Use Hosted Backend</span>
+                  <p className="text-xs text-gray-400">Use Quorum's servers (no API key needed)</p>
+                </div>
+                <button
+                  onClick={() => updateField('use_hosted_backend', !form.use_hosted_backend)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    form.use_hosted_backend ? 'bg-quorum-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      form.use_hosted_backend ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {!form.use_hosted_backend && (
+                <>
+                  {/* OpenAI API Key */}
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">OpenAI API Key</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={form.openai_api_key || ''}
+                        onChange={(e) => updateField('openai_api_key', e.target.value)}
+                        placeholder="sk-..."
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
+                      />
+                      <button
+                        onClick={() => handleTestKey('openai')}
+                        disabled={testing.openai}
+                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        {testing.openai ? '...' : 'Test'}
+                      </button>
+                    </div>
+                    {testResults.openai && (
+                      <p className={`text-xs mt-1 ${testResults.openai.valid ? 'text-green-600' : 'text-red-500'}`}>
+                        {testResults.openai.valid ? 'API key is valid!' : testResults.openai.error}
+                      </p>
+                    )}
+                    {errors.openai_api_key && (
+                      <p className="text-xs text-red-500 mt-1">{errors.openai_api_key}</p>
+                    )}
+                  </div>
+
+                  {/* Anthropic API Key */}
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Anthropic API Key</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={form.anthropic_api_key || ''}
+                        onChange={(e) => updateField('anthropic_api_key', e.target.value)}
+                        placeholder="sk-ant-..."
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
+                      />
+                      <button
+                        onClick={() => handleTestKey('anthropic')}
+                        disabled={testing.anthropic}
+                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        {testing.anthropic ? '...' : 'Test'}
+                      </button>
+                    </div>
+                    {testResults.anthropic && (
+                      <p className={`text-xs mt-1 ${testResults.anthropic.valid ? 'text-green-600' : 'text-red-500'}`}>
+                        {testResults.anthropic.valid ? 'API key is valid!' : testResults.anthropic.error}
+                      </p>
+                    )}
+                    {errors.anthropic_api_key && (
+                      <p className="text-xs text-red-500 mt-1">{errors.anthropic_api_key}</p>
+                    )}
+                  </div>
+
+                  {/* Gemini API Key */}
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Google Gemini API Key</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={form.gemini_api_key || ''}
+                        onChange={(e) => updateField('gemini_api_key', e.target.value)}
+                        placeholder="AIza..."
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
+                      />
+                      <button
+                        onClick={() => handleTestKey('gemini')}
+                        disabled={testing.gemini}
+                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        {testing.gemini ? '...' : 'Test'}
+                      </button>
+                    </div>
+                    {testResults.gemini && (
+                      <p className={`text-xs mt-1 ${testResults.gemini.valid ? 'text-green-600' : 'text-red-500'}`}>
+                        {testResults.gemini.valid ? 'API key is valid!' : testResults.gemini.error}
+                      </p>
+                    )}
+                    {errors.gemini_api_key && (
+                      <p className="text-xs text-red-500 mt-1">{errors.gemini_api_key}</p>
+                    )}
+                  </div>
+
+                  {/* Backend URL */}
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Backend URL</label>
+                    <input
+                      type="text"
+                      value={form.backend_url}
+                      onChange={(e) => updateField('backend_url', e.target.value)}
+                      placeholder="http://localhost:5000"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
+                    />
+                    {errors.backend_url && (
+                      <p className="text-xs text-red-500 mt-1">{errors.backend_url}</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
