@@ -22,7 +22,6 @@ class Orchestrator:
 
     def _create_provider(self) -> BaseProvider:
         """Create the appropriate provider based on model string."""
-        print("request.model: ", self.request.model)
         return get_provider(model=self.request.model, api_key=self.request.api_key)
 
     def _setup_agents(self) -> None:

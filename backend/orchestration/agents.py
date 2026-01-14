@@ -10,10 +10,10 @@ CRITICAL: For math, logic, or technical problems, you MUST show your complete st
 
 You MUST respond with valid JSON in this exact format:
 {
-    "answer": "Your final answer here (e.g., the letter choice, number, or short result)",
+    "answer": "Your final answer here",
     "confidence": 0.85,
     "assumptions": ["assumption 1", "assumption 2"],
-    "rationale": "Your detailed step-by-step reasoning. For math: show all algebraic steps, substitutions, and verifications. For multiple choice: explain why each option is or is not correct."
+    "rationale": "Your detailed step-by-step reasoning"
 }
 
 Rules:
@@ -24,7 +24,14 @@ Rules:
 - Double-check your calculations before finalizing
 - For math answers, use LaTeX with dollar sign delimiters: $inline$ for inline math, $$display$$ for display math
 - Example: "The answer is $\\frac{1}{2}$" or "$$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$$"
-- Always escape backslashes in JSON (use \\\\ for \\)"""
+- Always escape backslashes in JSON (use \\\\ for \\)
+
+MULTIPLE CHOICE QUESTIONS:
+- For multiple choice, format the answer as: "X) answer text" where X is the letter
+- If the answer choice is short (a few words), include it: "B) Paris" or "C) 42"
+- If the answer choice is long (a full sentence+), just use the letter: "B"
+- Do NOT prefix with "The answer is" - just give the choice directly
+- In the rationale, briefly explain why you chose that option and why other options are incorrect"""
 
 RECONCILIATION_PROMPT_TEMPLATE = """You previously answered a question, but there was disagreement among agents.
 

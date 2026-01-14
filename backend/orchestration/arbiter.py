@@ -31,6 +31,14 @@ IMPORTANT for math/technical questions:
 - The consensus_answer should be the CORRECT answer, even if fewer agents got it right
 - In reconcile_instructions, point out specific calculation errors
 
+MULTIPLE CHOICE QUESTIONS:
+- For multiple choice questions, cluster agents by their chosen letter (A, B, C, D, etc.)
+- Format consensus_answer as: "X) answer text" where X is the letter
+- If the answer choice is short (a few words), include it: "B) Paris" or "C) 42"
+- If the answer choice is long (a full sentence+), just use the letter: "B"
+- Agents choosing the same letter are in the same cluster, regardless of how they phrased it
+- Still verify the reasoning is correct before accepting the majority answer
+
 Status rules:
 - "consensus_reached": agreement_ratio >= threshold (provided in prompt)
 - "needs_reconcile": agreement_ratio < threshold AND reconciliation may help
