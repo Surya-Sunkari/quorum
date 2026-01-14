@@ -77,11 +77,15 @@ function App() {
     setResult(null);
 
     try {
-      setLoadingMessage(`Running ${settings.n_agents} agents...`);
+      if (settings.n_agents > 1) {
+        setLoadingMessage(`Running ${settings.n_agents} agents...`);
+      } else {
+        setLoadingMessage(`Running 1 agent...`);
+      }
 
       const requestBody = {
         question: question.trim(),
-        n_agents: settings.n_agents,
+        n_agents: settings.n_agents > 1 ? settings.n_agents : 1,
         agreement_ratio: settings.agreement_ratio,
         max_rounds: settings.max_rounds,
         model: settings.model,
