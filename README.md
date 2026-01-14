@@ -5,6 +5,7 @@ A Chrome extension that provides consensus-based answers from multiple AI agents
 ## Features
 
 - **Multi-agent consensus:** Multiple AI agents answer independently for more reliable results
+- **Multi-provider support:** Choose from OpenAI, Anthropic (Claude), or Google Gemini models
 - **Image support:** Paste screenshots or upload images of questions
 - **LaTeX rendering:** Math answers render beautifully with KaTeX
 - **Side panel mode:** Open in browser sidebar for persistent access
@@ -25,7 +26,10 @@ quorum/
 
 - Node.js 18+
 - Python 3.10+
-- OpenAI API key
+- API key for at least one provider:
+  - OpenAI API key (`sk-...`)
+  - Anthropic API key (`sk-ant-...`)
+  - Google Gemini API key (`AIza...`)
 
 ## Quick Start
 
@@ -65,8 +69,9 @@ npm run build
 ### 4. Configure Extension
 
 1. Click the settings icon in the extension popup
-2. Enter your OpenAI API key
-3. Select your preferred model
+2. Open "Developer Settings" and enter API key(s) for your preferred provider(s):
+   - OpenAI, Anthropic (Claude), and/or Google Gemini
+3. Select your preferred model from any provider with a configured key
 4. Adjust agent count and agreement ratio as needed
 5. Click "Save Settings"
 
@@ -102,14 +107,33 @@ After changes, reload the extension in `chrome://extensions/`
 
 ## Available Models
 
+Models use the format `provider:model-name` in API requests.
+
+### OpenAI
+
 | Model | Description |
 |-------|-------------|
-| `gpt-4.1-mini` | Fast and cheap (default) |
-| `gpt-4.1` | Balanced performance |
-| `gpt-5-mini` | Fast, more capable |
-| `gpt-5.1` | High capability |
-| `gpt-5.2` | Latest and most capable |
-| `o3-mini` | Optimized for reasoning |
+| `openai:gpt-4.1-mini` | Fast and cheap (default) |
+| `openai:gpt-4.1` | Balanced performance |
+| `openai:gpt-5-mini` | Fast, more capable |
+| `openai:gpt-5.1` | High capability |
+| `openai:gpt-5.2` | Latest and most capable |
+
+### Anthropic (Claude)
+
+| Model | Description |
+|-------|-------------|
+| `anthropic:claude-opus-4-5-20251101` | Most capable Claude model |
+| `anthropic:claude-sonnet-4-5-20250929` | Balanced performance |
+| `anthropic:claude-haiku-4-5-20251001` | Fast and efficient |
+
+### Google Gemini
+
+| Model | Description |
+|-------|-------------|
+| `gemini:gemini-3-pro-preview` | Most capable Gemini |
+| `gemini:gemini-3-flash-preview` | Fast, high capability |
+| `gemini:gemini-2.5-flash` | Fast and efficient |
 
 ## Testing Checklist
 
@@ -160,7 +184,7 @@ Response:
 
 ### POST /validate-key
 
-Validates an OpenAI API key.
+Validates an API key for any supported provider (OpenAI, Anthropic, or Gemini).
 
 ### GET /health
 
@@ -175,8 +199,16 @@ Returns `{"status": "ok"}` for health checks.
 | Number of Agents | 3 | 1-10 | How many AI agents answer the question |
 | Agreement Ratio | 67% | 0-100% | Required agreement for consensus |
 | Max Rounds | 2 | 0-5 | Maximum reconciliation rounds |
-| Model | gpt-4.1-mini | - | OpenAI model to use |
+| Model | openai:gpt-4.1-mini | - | Model to use (provider:model format) |
 | Debug Mode | Off | - | Show per-agent outputs |
+
+### API Keys (Developer Settings)
+
+| Provider | Key Format | Required For |
+|----------|------------|--------------|
+| OpenAI | `sk-...` | OpenAI models |
+| Anthropic | `sk-ant-...` | Claude models |
+| Google Gemini | `AIza...` | Gemini models |
 
 ### Backend Environment Variables
 

@@ -40,7 +40,9 @@ quorum/
 │   │   └── arbiter.py            # ArbiterAgent for consensus
 │   ├── providers/
 │   │   ├── base.py               # Provider interface
-│   │   └── openai_provider.py    # OpenAI implementation (supports vision)
+│   │   ├── openai_provider.py    # OpenAI implementation (supports vision)
+│   │   ├── anthropic_provider.py # Anthropic Claude implementation
+│   │   └── gemini_provider.py    # Google Gemini implementation
 │   └── schemas/
 │       └── models.py             # Pydantic request/response models
 ├── extension/
@@ -87,12 +89,14 @@ Quorum is a Chrome extension that provides consensus-based answers from multiple
 - `POST /validate-key` - API key validation
 - `GET /health` - Health check
 - Provider-agnostic orchestration layer
-- OpenAI provider with vision support for images
+- Multi-provider support: OpenAI, Anthropic (Claude), Google Gemini
+- Vision/image support across all providers
 
 ## Key Features
 
 - **Multi-agent consensus:** N agents answer independently, arbiter clusters answers
-- **Image support:** Paste screenshots or upload images (uses OpenAI vision)
+- **Multi-provider support:** OpenAI, Anthropic (Claude), and Google Gemini models
+- **Image support:** Paste screenshots or upload images (vision support across providers)
 - **LaTeX rendering:** Math answers render properly with KaTeX
 - **Side panel:** Open extension in browser sidebar for persistent use
 - **Session persistence:** Question/image state syncs between popup and sidebar
@@ -116,12 +120,24 @@ POST /ask
 
 ## Available Models
 
+Models use the format `provider:model-name`.
+
+### OpenAI
 - `openai:gpt-4.1-mini` (default, fast)
 - `openai:gpt-4.1`
 - `openai:gpt-5-mini`
 - `openai:gpt-5.1`
-- `openai:gpt-5.2`
-- `openai:o3-mini` (reasoning)
+- `openai:gpt-5.2` (latest)
+
+### Anthropic (Claude)
+- `anthropic:claude-opus-4-5-20251101` (most capable)
+- `anthropic:claude-sonnet-4-5-20250929`
+- `anthropic:claude-haiku-4-5-20251001` (fast)
+
+### Google Gemini
+- `gemini:gemini-3-pro-preview`
+- `gemini:gemini-3-flash-preview`
+- `gemini:gemini-2.5-flash` (fast)
 
 ## Defaults
 
@@ -142,3 +158,12 @@ POST /ask
 - API keys stored locally in Chrome storage, sent only over HTTPS
 - Backend must never persist or log API keys
 - No server-side storage of prompts/answers by default
+
+## Documentation Maintenance
+
+**Important:** After making significant changes to the codebase, update this file (CLAUDE.md) and README.md to reflect:
+- New features or capabilities
+- Changes to available models or providers
+- API contract changes
+- New dependencies or requirements
+- Architecture changes
