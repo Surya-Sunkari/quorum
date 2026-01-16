@@ -59,9 +59,10 @@ Respond with valid JSON in the same format:
 class AnswerAgent:
     """An independent agent that answers questions."""
 
-    def __init__(self, agent_id: int, provider: BaseProvider):
+    def __init__(self, agent_id: int, provider: BaseProvider, model: str = ""):
         self.agent_id = agent_id
         self.provider = provider
+        self.model = model
         self.previous_output: AgentOutput | None = None
 
     async def answer(self, question: str, image: str | None = None) -> AgentOutput:
@@ -81,6 +82,7 @@ class AnswerAgent:
             confidence=min(1.0, max(0.0, float(response.get("confidence", 0.5)))),
             assumptions=response.get("assumptions", []),
             short_rationale=response.get("rationale", response.get("short_rationale", "")),
+            model=self.model,
         )
         self.previous_output = output
         return output
@@ -118,6 +120,7 @@ class AnswerAgent:
             confidence=min(1.0, max(0.0, float(response.get("confidence", 0.5)))),
             assumptions=response.get("assumptions", []),
             short_rationale=response.get("rationale", response.get("short_rationale", "")),
+            model=self.model,
         )
         self.previous_output = output
         return output

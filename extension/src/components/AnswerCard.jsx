@@ -106,9 +106,16 @@ function AnswerCard({ result, showDetails }) {
                       className="bg-gray-50 rounded-xl p-3"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-600">
-                          Agent {output.agent_id + 1}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-600">
+                            Agent {output.agent_id + 1}
+                          </span>
+                          {output.model && (
+                            <span className="text-xs text-quorum-500 bg-quorum-50 px-1.5 py-0.5 rounded">
+                              {output.model.split(':')[1] || output.model}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-gray-400">
                           {Math.round(output.confidence * 100)}% confident
                         </span>

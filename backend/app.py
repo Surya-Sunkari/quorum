@@ -95,9 +95,15 @@ def ask():
         return jsonify({"error": "Validation failed", "details": errors}), 400
 
     # Enforce server-side limits
-    if ask_request.n_agents > MAX_AGENTS:
+    total_agents = ask_request.get_total_agents()
+    if total_agents > MAX_AGENTS:
         return jsonify({
-            "error": f"n_agents exceeds server limit of {MAX_AGENTS}"
+            "error": f"Total agents ({total_agents}) exceeds server limit of {MAX_AGENTS}"
+        }), 400
+
+    if total_agents < 1:
+        return jsonify({
+            "error": "Must have at least 1 agent"
         }), 400
 
     if ask_request.max_rounds > MAX_ROUNDS:

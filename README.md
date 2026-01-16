@@ -6,10 +6,12 @@ A Chrome extension that provides consensus-based answers from multiple AI agents
 
 - **Multi-agent consensus:** Multiple AI agents answer independently for more reliable results
 - **Multi-provider support:** Choose from OpenAI, Anthropic (Claude), or Google Gemini models
+- **Mixed-model mode:** Run agents from different models/providers simultaneously in the same quorum
 - **Image support:** Paste screenshots or upload images of questions
 - **LaTeX rendering:** Math answers render beautifully with KaTeX
 - **Side panel mode:** Open in browser sidebar for persistent access
 - **Configurable:** Adjust number of agents, agreement threshold, and model
+- **Smart arbiter:** Uses GPT-5.2 for consensus evaluation (with intelligent fallback)
 
 ## Project Structure
 
@@ -87,6 +89,15 @@ Type your question in the text area and click "Ask" or press Ctrl+Enter.
 ### Side Panel
 Click the sidebar icon (next to settings) to open Quorum in the browser's side panel. Your current question and image will be preserved.
 
+### Mixed Model Mode
+Enable "Mixed Models" in settings to run agents from multiple providers simultaneously:
+1. Toggle "Mixed Models" in the Agent Configuration section
+2. Set the number of agents for each model you want to use (minimum 1 per model)
+3. Requires API keys for each provider you're using
+4. Total agents across all models cannot exceed 10
+
+This is useful for getting diverse perspectives from different AI models in the same consensus run.
+
 ## Development
 
 ### Backend (with auto-reload)
@@ -152,6 +163,7 @@ Models use the format `provider:model-name` in API requests.
 
 ### POST /ask
 
+#### Single Model Mode
 Request:
 ```json
 {
@@ -163,6 +175,25 @@ Request:
   "model": "openai:gpt-4.1-mini",
   "api_key": "sk-...",
   "return_agent_outputs": false
+}
+```
+
+#### Mixed Model Mode
+Request:
+```json
+{
+  "question": "What is the integral of x^2?",
+  "agreement_ratio": 0.67,
+  "max_rounds": 2,
+  "return_agent_outputs": true,
+  "mixed_models": [
+    { "model": "openai:gpt-4.1-mini", "count": 2 },
+    { "model": "anthropic:claude-haiku-4-5-20251001", "count": 1 }
+  ],
+  "api_keys": {
+    "openai": "sk-...",
+    "anthropic": "sk-ant-..."
+  }
 }
 ```
 
@@ -200,6 +231,7 @@ Returns `{"status": "ok"}` for health checks.
 | Agreement Ratio | 67% | 0-100% | Required agreement for consensus |
 | Max Rounds | 2 | 0-5 | Maximum reconciliation rounds |
 | Model | openai:gpt-4.1-mini | - | Model to use (provider:model format) |
+| Mixed Models | Off | - | Enable mixed-model mode (agents from multiple providers) |
 | Debug Mode | Off | - | Show per-agent outputs |
 
 ### API Keys (Developer Settings)

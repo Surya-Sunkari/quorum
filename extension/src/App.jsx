@@ -5,7 +5,16 @@ import AnswerCard from './components/AnswerCard';
 import SettingsPanel from './components/SettingsPanel';
 import LoadingState from './components/LoadingState';
 import ErrorMessage from './components/ErrorMessage';
-import { getSettings, getSessionState, saveSessionState, HOSTED_CONFIG, getHostedApiKey, getUserApiKey } from './utils/storage';
+import {
+  getSettings,
+  getSessionState,
+  saveSessionState,
+  HOSTED_CONFIG,
+  getHostedApiKey,
+  getUserApiKey,
+  getMixedModelsArray,
+  getTotalMixedAgents,
+} from './utils/storage';
 import { askQuestion } from './utils/api';
 
 function App() {
@@ -61,14 +70,41 @@ function App() {
       return;
     }
 
-    // Determine which backend and API key to use
+    // Determine which backend to use
     const useHosted = settings.use_hosted_backend;
     const backendUrl = useHosted ? HOSTED_CONFIG.backend_url : settings.backend_url;
-    const apiKey = useHosted ? getHostedApiKey(settings.model) : getUserApiKey(settings, settings.model);
 
-    if (!useHosted && !apiKey) {
-      setError('Please configure the API key for the selected model provider in settings');
+    // Check if using mixed mode
+    const isMixedMode = settings.mixed_mode;
+    const mixedModels = isMixedMode ? getMixedModelsArray(settings.mixed_model_configs) : [];
+    const totalAgents = isMixedMode ? getTotalMixedAgents(settings.mixed_model_configs) : settings.n_agents;
+
+    // Validate configuration
+    if (isMixedMode && mixedModels.length === 0) {
+      setError('Please add at least 1 agent in mixed model settings');
       return;
+    }
+
+    // Build API keys based on mode
+    if (isMixedMode) {
+      // For mixed mode, collect API keys for all providers used
+      const providersUsed = new Set(mixedModels.map((m) => m.model.split(':')[0]));
+      for (const provider of providersUsed) {
+        const hasKey = useHosted
+          ? !!HOSTED_CONFIG.api_keys[provider]
+          : !!settings[`${provider}_api_key`];
+        if (!hasKey) {
+          setError(`Please configure the ${provider} API key for mixed model mode`);
+          return;
+        }
+      }
+    } else {
+      // Single model mode - check single API key
+      const apiKey = useHosted ? getHostedApiKey(settings.model) : getUserApiKey(settings, settings.model);
+      if (!useHosted && !apiKey) {
+        setError('Please configure the API key for the selected model provider in settings');
+        return;
+      }
     }
 
     setLoading(true);
@@ -77,21 +113,44 @@ function App() {
     setResult(null);
 
     try {
-      if (settings.n_agents > 1) {
-        setLoadingMessage(`Running ${settings.n_agents} agents...`);
+      if (totalAgents > 1) {
+        setLoadingMessage(`Running ${totalAgents} agents${isMixedMode ? ' (mixed models)' : ''}...`);
       } else {
         setLoadingMessage(`Running 1 agent...`);
       }
 
-      const requestBody = {
-        question: question.trim(),
-        n_agents: settings.n_agents > 1 ? settings.n_agents : 1,
-        agreement_ratio: settings.agreement_ratio,
-        max_rounds: settings.max_rounds,
-        model: settings.model,
-        api_key: apiKey,
-        return_agent_outputs: settings.return_agent_outputs || settings.debug_mode,
-      };
+      let requestBody;
+
+      if (isMixedMode) {
+        // Mixed model mode request
+        const apiKeys = {
+          openai: useHosted ? HOSTED_CONFIG.api_keys.openai : settings.openai_api_key || null,
+          anthropic: useHosted ? HOSTED_CONFIG.api_keys.anthropic : settings.anthropic_api_key || null,
+          gemini: useHosted ? HOSTED_CONFIG.api_keys.gemini : settings.gemini_api_key || null,
+        };
+
+        requestBody = {
+          question: question.trim(),
+          agreement_ratio: settings.agreement_ratio,
+          max_rounds: settings.max_rounds,
+          return_agent_outputs: settings.return_agent_outputs || settings.debug_mode,
+          mixed_models: mixedModels,
+          api_keys: apiKeys,
+        };
+      } else {
+        // Single model mode request
+        const apiKey = useHosted ? getHostedApiKey(settings.model) : getUserApiKey(settings, settings.model);
+
+        requestBody = {
+          question: question.trim(),
+          n_agents: settings.n_agents > 1 ? settings.n_agents : 1,
+          agreement_ratio: settings.agreement_ratio,
+          max_rounds: settings.max_rounds,
+          model: settings.model,
+          api_key: apiKey,
+          return_agent_outputs: settings.return_agent_outputs || settings.debug_mode,
+        };
+      }
 
       if (image) {
         requestBody.image = image;

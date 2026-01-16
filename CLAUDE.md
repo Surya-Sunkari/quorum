@@ -96,15 +96,18 @@ Quorum is a Chrome extension that provides consensus-based answers from multiple
 
 - **Multi-agent consensus:** N agents answer independently, arbiter clusters answers
 - **Multi-provider support:** OpenAI, Anthropic (Claude), and Google Gemini models
+- **Mixed-model mode:** Run agents from different models simultaneously in the same quorum
 - **Image support:** Paste screenshots or upload images (vision support across providers)
 - **LaTeX rendering:** Math answers render properly with KaTeX
 - **Side panel:** Open extension in browser sidebar for persistent use
 - **Session persistence:** Question/image state syncs between popup and sidebar
 - **Agreement ratio:** Calculated server-side (doesn't trust LLM math)
+- **Smart arbiter:** Arbiter always uses GPT-5.2 (falls back to best available model)
 
 ## API Contract
 
-```
+### Single Model Mode
+```json
 POST /ask
 {
   "question": "string",
@@ -115,6 +118,28 @@ POST /ask
   "model": "openai:gpt-4.1-mini",
   "api_key": "user_key",
   "return_agent_outputs": false
+}
+```
+
+### Mixed Model Mode
+```json
+POST /ask
+{
+  "question": "string",
+  "image": "data:image/png;base64,...",  // Optional
+  "agreement_ratio": 0.67,
+  "max_rounds": 2,
+  "return_agent_outputs": false,
+  "mixed_models": [
+    { "model": "openai:gpt-4.1-mini", "count": 2 },
+    { "model": "anthropic:claude-haiku-4-5-20251001", "count": 1 },
+    { "model": "gemini:gemini-2.5-flash", "count": 1 }
+  ],
+  "api_keys": {
+    "openai": "sk-...",
+    "anthropic": "sk-ant-...",
+    "gemini": "AIza..."
+  }
 }
 ```
 

@@ -14,6 +14,29 @@ const HOSTED_CONFIG = {
 };
 
 /**
+ * Available models organized by provider.
+ */
+export const AVAILABLE_MODELS = {
+  openai: [
+    { id: 'openai:gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Fast' },
+    { id: 'openai:gpt-4.1', name: 'GPT-4.1', description: 'Balanced' },
+    { id: 'openai:gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast, capable' },
+    { id: 'openai:gpt-5.1', name: 'GPT-5.1', description: 'High capability' },
+    { id: 'openai:gpt-5.2', name: 'GPT-5.2', description: 'Latest' },
+  ],
+  anthropic: [
+    { id: 'anthropic:claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', description: 'Fast' },
+    { id: 'anthropic:claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', description: 'Balanced' },
+    { id: 'anthropic:claude-opus-4-5-20251101', name: 'Claude Opus 4.5', description: 'Most capable' },
+  ],
+  gemini: [
+    { id: 'gemini:gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast' },
+    { id: 'gemini:gemini-3-flash-preview', name: 'Gemini 3 Flash', description: 'Fast, capable' },
+    { id: 'gemini:gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Most capable' },
+  ],
+};
+
+/**
  * Get the provider name from a model string.
  * @param {string} model - Model string in format "provider:model-name"
  * @returns {string} Provider name (openai, anthropic, gemini)
@@ -48,7 +71,32 @@ const DEFAULT_SETTINGS = {
   debug_mode: false,
   backend_url: 'http://localhost:5000',
   use_hosted_backend: true, // Default to hosted mode for regular users
+  // Mixed-model mode settings
+  mixed_mode: false,
+  mixed_model_configs: {}, // { 'openai:gpt-4.1-mini': 2, 'anthropic:claude-haiku-4-5-20251001': 1 }
 };
+
+/**
+ * Get total agent count from mixed model configs.
+ * @param {object} mixedModelConfigs - Object mapping model IDs to counts
+ * @returns {number} Total agent count
+ */
+export function getTotalMixedAgents(mixedModelConfigs) {
+  if (!mixedModelConfigs) return 0;
+  return Object.values(mixedModelConfigs).reduce((sum, count) => sum + (count || 0), 0);
+}
+
+/**
+ * Convert mixed model configs to API format.
+ * @param {object} mixedModelConfigs - Object mapping model IDs to counts
+ * @returns {Array} Array of { model, count } objects (only includes models with count >= 1)
+ */
+export function getMixedModelsArray(mixedModelConfigs) {
+  if (!mixedModelConfigs) return [];
+  return Object.entries(mixedModelConfigs)
+    .filter(([_, count]) => count >= 1)
+    .map(([model, count]) => ({ model, count }));
+}
 
 /**
  * Get the user's API key for a specific provider.

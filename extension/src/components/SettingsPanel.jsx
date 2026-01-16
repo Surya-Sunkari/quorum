@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { saveSettings, resetSettings, DEFAULT_SETTINGS, HOSTED_CONFIG, getProviderFromModel } from '../utils/storage';
+import {
+  saveSettings,
+  resetSettings,
+  DEFAULT_SETTINGS,
+  HOSTED_CONFIG,
+  getProviderFromModel,
+  AVAILABLE_MODELS,
+  getTotalMixedAgents,
+} from '../utils/storage';
 import { validateApiKey, checkBackendHealth } from '../utils/api';
 
 function SettingsPanel({ settings, onSave, onCancel }) {
@@ -15,11 +23,79 @@ function SettingsPanel({ settings, onSave, onCancel }) {
     setErrors((prev) => ({ ...prev, [field]: null }));
   };
 
+  // Helper to update mixed model config counts
+  const updateMixedModelCount = (modelId, count) => {
+    const newConfigs = { ...form.mixed_model_configs };
+    const parsedCount = parseInt(count) || 0;
+    if (parsedCount >= 1) {
+      newConfigs[modelId] = parsedCount;
+    } else {
+      delete newConfigs[modelId];
+    }
+    updateField('mixed_model_configs', newConfigs);
+  };
+
+  // Get count for a specific model in mixed mode
+  const getMixedModelCount = (modelId) => {
+    return form.mixed_model_configs?.[modelId] || 0;
+  };
+
+  // Get total agents in mixed mode
+  const totalMixedAgents = getTotalMixedAgents(form.mixed_model_configs);
+
+  // Provider display names
+  const providerNames = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    gemini: 'Google Gemini',
+  };
+
   const validate = () => {
     const newErrors = {};
 
-    if (form.n_agents < 1 || form.n_agents > 10) {
-      newErrors.n_agents = 'Must be between 1 and 10';
+    if (form.mixed_mode) {
+      // Mixed mode validation
+      if (totalMixedAgents < 1) {
+        newErrors.mixed_models = 'Add at least 1 agent';
+      }
+      if (totalMixedAgents > 10) {
+        newErrors.mixed_models = 'Maximum 10 agents total';
+      }
+
+      // Check API keys for providers used in mixed mode
+      if (!form.use_hosted_backend) {
+        const providersUsed = new Set();
+        Object.keys(form.mixed_model_configs || {}).forEach((modelId) => {
+          if (form.mixed_model_configs[modelId] >= 1) {
+            providersUsed.add(getProviderFromModel(modelId));
+          }
+        });
+        for (const provider of providersUsed) {
+          const apiKeyField = `${provider}_api_key`;
+          if (!form[apiKeyField]) {
+            newErrors[apiKeyField] = `${providerNames[provider]} API key is required`;
+          }
+        }
+      }
+    } else {
+      // Single model mode validation
+      if (form.n_agents < 1 || form.n_agents > 10) {
+        newErrors.n_agents = 'Must be between 1 and 10';
+      }
+
+      const validPrefixes = ['openai:', 'anthropic:', 'gemini:'];
+      if (!validPrefixes.some((prefix) => form.model.startsWith(prefix))) {
+        newErrors.model = 'Invalid model format';
+      }
+
+      // Validate API key for selected provider if not using hosted backend
+      if (!form.use_hosted_backend) {
+        const provider = getProviderFromModel(form.model);
+        const apiKeyField = `${provider}_api_key`;
+        if (!form[apiKeyField]) {
+          newErrors[apiKeyField] = `${providerNames[provider]} API key is required for selected model`;
+        }
+      }
     }
 
     if (form.agreement_ratio < 0 || form.agreement_ratio > 1) {
@@ -30,23 +106,9 @@ function SettingsPanel({ settings, onSave, onCancel }) {
       newErrors.max_rounds = 'Must be between 0 and 5';
     }
 
-    const validPrefixes = ['openai:', 'anthropic:', 'gemini:'];
-    if (!validPrefixes.some((prefix) => form.model.startsWith(prefix))) {
-      newErrors.model = 'Invalid model format';
-    }
-
     // Only validate backend_url if not using hosted backend
     if (!form.use_hosted_backend && !form.backend_url) {
       newErrors.backend_url = 'Backend URL is required';
-    }
-
-    // Validate API key for selected provider if not using hosted backend
-    if (!form.use_hosted_backend) {
-      const provider = getProviderFromModel(form.model);
-      const apiKeyField = `${provider}_api_key`;
-      if (!form[apiKeyField]) {
-        newErrors[apiKeyField] = `${provider.charAt(0).toUpperCase() + provider.slice(1)} API key is required for selected model`;
-      }
     }
 
     setErrors(newErrors);
@@ -129,63 +191,141 @@ function SettingsPanel({ settings, onSave, onCancel }) {
 
         {/* Agent Configuration */}
         <div className="bg-white rounded-2xl shadow-bubbly p-4 space-y-3">
-          <h3 className="text-sm font-medium text-gray-700">Agent Configuration</h3>
-
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Model</label>
-            <select
-              value={form.model}
-              onChange={(e) => updateField('model', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
-            >
-              <optgroup label={`OpenAI${!hasApiKey('openai') ? ' (No API Key)' : ''}`}>
-                <option value="openai:gpt-4.1-mini" disabled={!hasApiKey('openai')}>GPT-4.1 Mini (Fast)</option>
-                <option value="openai:gpt-4.1" disabled={!hasApiKey('openai')}>GPT-4.1</option>
-                <option value="openai:gpt-5-mini" disabled={!hasApiKey('openai')}>GPT-5 Mini</option>
-                <option value="openai:gpt-5.1" disabled={!hasApiKey('openai')}>GPT-5.1</option>
-                <option value="openai:gpt-5.2" disabled={!hasApiKey('openai')}>GPT-5.2 (Latest)</option>
-              </optgroup>
-              <optgroup label={`Anthropic${!hasApiKey('anthropic') ? ' (No API Key)' : ''}`}>
-                <option value="anthropic:claude-haiku-4-5-20251001" disabled={!hasApiKey('anthropic')}>Claude Haiku 4.5 (Fast)</option>
-                <option value="anthropic:claude-sonnet-4-5-20250929" disabled={!hasApiKey('anthropic')}>Claude Sonnet 4.5</option>
-                <option value="anthropic:claude-opus-4-5-20251101" disabled={!hasApiKey('anthropic')}>Claude Opus 4.5 (Latest)</option>
-              </optgroup>
-              <optgroup label={`Google${!hasApiKey('gemini') ? ' (No API Key)' : ''}`}>
-                <option value="gemini:gemini-2.5-flash" disabled={!hasApiKey('gemini')}>Gemini 2.5 Flash (Fast)</option>
-                <option value="gemini:gemini-3-flash-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Flash</option>
-                <option value="gemini:gemini-3-pro-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Pro (Latest)</option>
-              </optgroup>
-            </select>
-            {errors.model && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-gray-700">Agent Configuration</h3>
+            {/* Mixed Mode Toggle */}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-xs text-gray-500">Mixed Models</span>
+              <button
+                type="button"
+                onClick={() => updateField('mixed_mode', !form.mixed_mode)}
+                className={`relative w-9 h-5 rounded-full transition-colors ${
+                  form.mixed_mode ? 'bg-quorum-500' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    form.mixed_mode ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Number of Agents</label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={form.n_agents}
-                onChange={(e) => updateField('n_agents', parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-              />
-              {errors.n_agents && <p className="text-xs text-red-500 mt-1">{errors.n_agents}</p>}
-            </div>
+          {!form.mixed_mode ? (
+            /* Single Model Mode */
+            <>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Model</label>
+                <select
+                  value={form.model}
+                  onChange={(e) => updateField('model', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
+                >
+                  <optgroup label={`OpenAI${!hasApiKey('openai') ? ' (No API Key)' : ''}`}>
+                    <option value="openai:gpt-4.1-mini" disabled={!hasApiKey('openai')}>GPT-4.1 Mini (Fast)</option>
+                    <option value="openai:gpt-4.1" disabled={!hasApiKey('openai')}>GPT-4.1</option>
+                    <option value="openai:gpt-5-mini" disabled={!hasApiKey('openai')}>GPT-5 Mini</option>
+                    <option value="openai:gpt-5.1" disabled={!hasApiKey('openai')}>GPT-5.1</option>
+                    <option value="openai:gpt-5.2" disabled={!hasApiKey('openai')}>GPT-5.2 (Latest)</option>
+                  </optgroup>
+                  <optgroup label={`Anthropic${!hasApiKey('anthropic') ? ' (No API Key)' : ''}`}>
+                    <option value="anthropic:claude-haiku-4-5-20251001" disabled={!hasApiKey('anthropic')}>Claude Haiku 4.5 (Fast)</option>
+                    <option value="anthropic:claude-sonnet-4-5-20250929" disabled={!hasApiKey('anthropic')}>Claude Sonnet 4.5</option>
+                    <option value="anthropic:claude-opus-4-5-20251101" disabled={!hasApiKey('anthropic')}>Claude Opus 4.5 (Latest)</option>
+                  </optgroup>
+                  <optgroup label={`Google${!hasApiKey('gemini') ? ' (No API Key)' : ''}`}>
+                    <option value="gemini:gemini-2.5-flash" disabled={!hasApiKey('gemini')}>Gemini 2.5 Flash (Fast)</option>
+                    <option value="gemini:gemini-3-flash-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Flash</option>
+                    <option value="gemini:gemini-3-pro-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Pro (Latest)</option>
+                  </optgroup>
+                </select>
+                {errors.model && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
+              </div>
 
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Max Rounds</label>
-              <input
-                type="number"
-                min="0"
-                max="5"
-                value={form.max_rounds}
-                onChange={(e) => updateField('max_rounds', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-              />
-              {errors.max_rounds && <p className="text-xs text-red-500 mt-1">{errors.max_rounds}</p>}
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Number of Agents</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={form.n_agents}
+                    onChange={(e) => updateField('n_agents', parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
+                  />
+                  {errors.n_agents && <p className="text-xs text-red-500 mt-1">{errors.n_agents}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Max Rounds</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="5"
+                    value={form.max_rounds}
+                    onChange={(e) => updateField('max_rounds', parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
+                  />
+                  {errors.max_rounds && <p className="text-xs text-red-500 mt-1">{errors.max_rounds}</p>}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Mixed Model Mode */
+            <>
+              <p className="text-xs text-gray-500">
+                Configure agents from multiple models. Total: <span className="font-medium text-quorum-600">{totalMixedAgents}</span> / 10
+              </p>
+              {errors.mixed_models && <p className="text-xs text-red-500">{errors.mixed_models}</p>}
+
+              {/* Provider sections */}
+              {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
+                <div key={provider} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-600">{providerNames[provider]}</span>
+                    {!hasApiKey(provider) && (
+                      <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">No API Key</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    {models.map((model) => (
+                      <div key={model.id} className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={getMixedModelCount(model.id)}
+                          onChange={(e) => updateMixedModelCount(model.id, e.target.value)}
+                          disabled={!hasApiKey(provider)}
+                          className="w-14 px-2 py-1 text-sm text-center border border-gray-200 rounded-lg focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 disabled:bg-gray-50 disabled:text-gray-400"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-sm ${!hasApiKey(provider) ? 'text-gray-400' : 'text-gray-700'}`}>
+                            {model.name}
+                          </span>
+                          <span className="text-xs text-gray-400 ml-1">({model.description})</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Max Rounds</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  value={form.max_rounds}
+                  onChange={(e) => updateField('max_rounds', parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
+                />
+                {errors.max_rounds && <p className="text-xs text-red-500 mt-1">{errors.max_rounds}</p>}
+              </div>
+            </>
+          )}
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">
