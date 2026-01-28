@@ -12,7 +12,7 @@ ARBITER_MODEL = "openai:gpt-5.2"
 # Fallback models in order of preference if OpenAI key not available
 ARBITER_FALLBACK_MODELS = [
     ("openai", "openai:gpt-5.2"),
-    ("anthropic", "anthropic:claude-opus-4-5-20251101"),
+    ("anthropic", "anthropic:claude-opus-4-5"),
     ("gemini", "gemini:gemini-3-pro-preview"),
 ]
 

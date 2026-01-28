@@ -68,6 +68,7 @@ class AnswerAgent:
     async def answer(self, question: str, image: str | None = None) -> AgentOutput:
         """Generate an answer to the question."""
         prompt = f"Question: {question}" if question else "Please analyze this image and answer any question it contains."
+        print('model: '+ self.model + " \nprompt: " + question + "\n\n")
         response = await self.provider.generate_json(
             prompt=prompt,
             system_prompt=ANSWER_SYSTEM_PROMPT,

@@ -25,9 +25,9 @@ export const AVAILABLE_MODELS = {
     { id: 'openai:gpt-5.2', name: 'GPT-5.2', description: 'Latest' },
   ],
   anthropic: [
-    { id: 'anthropic:claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', description: 'Fast' },
-    { id: 'anthropic:claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', description: 'Balanced' },
-    { id: 'anthropic:claude-opus-4-5-20251101', name: 'Claude Opus 4.5', description: 'Most capable' },
+    { id: 'anthropic:claude-haiku-4-5', name: 'Claude Haiku 4.5', description: 'Fast' },
+    { id: 'anthropic:claude-sonnet-4-5', name: 'Claude Sonnet 4.5', description: 'Balanced' },
+    { id: 'anthropic:claude-opus-4-5', name: 'Claude Opus 4.5', description: 'Most capable' },
   ],
   gemini: [
     { id: 'gemini:gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast' },
@@ -35,6 +35,44 @@ export const AVAILABLE_MODELS = {
     { id: 'gemini:gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Most capable' },
   ],
 };
+
+/**
+ * Map of model IDs to friendly display names.
+ */
+export const MODEL_DISPLAY_NAMES = {
+  // OpenAI
+  'openai:gpt-4.1-mini': 'GPT-4.1 Mini',
+  'openai:gpt-4.1': 'GPT-4.1',
+  'openai:gpt-5-mini': 'GPT-5 Mini',
+  'openai:gpt-5.1': 'GPT-5.1',
+  'openai:gpt-5.2': 'GPT-5.2',
+  // Anthropic
+  'anthropic:claude-haiku-4-5': 'Claude Haiku 4.5',
+  'anthropic:claude-sonnet-4-5': 'Claude Sonnet 4.5',
+  'anthropic:claude-opus-4-5': 'Claude Opus 4.5',
+  // Gemini
+  'gemini:gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini:gemini-3-flash-preview': 'Gemini 3 Flash',
+  'gemini:gemini-3-pro-preview': 'Gemini 3 Pro',
+};
+
+/**
+ * Get a friendly display name for a model ID.
+ * @param {string} modelId - Model ID in format 'provider:model-name'
+ * @returns {string} Friendly display name
+ */
+export function getModelDisplayName(modelId) {
+  if (!modelId) return '';
+  if (MODEL_DISPLAY_NAMES[modelId]) return MODEL_DISPLAY_NAMES[modelId];
+  // Fallback: extract model name and format it nicely
+  const parts = modelId.split(':');
+  if (parts.length === 2) {
+    return parts[1]
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return modelId;
+}
 
 /**
  * Get the provider name from a model string.
@@ -73,7 +111,7 @@ const DEFAULT_SETTINGS = {
   use_hosted_backend: true, // Default to hosted mode for regular users
   // Mixed-model mode settings
   mixed_mode: false,
-  mixed_model_configs: {}, // { 'openai:gpt-4.1-mini': 2, 'anthropic:claude-haiku-4-5-20251001': 1 }
+  mixed_model_configs: {}, // { 'openai:gpt-4.1-mini': 2, 'anthropic:claude-haiku-4-5': 1 }
 };
 
 /**

@@ -230,9 +230,9 @@ function SettingsPanel({ settings, onSave, onCancel }) {
                     <option value="openai:gpt-5.2" disabled={!hasApiKey('openai')}>GPT-5.2 (Latest)</option>
                   </optgroup>
                   <optgroup label={`Anthropic${!hasApiKey('anthropic') ? ' (No API Key)' : ''}`}>
-                    <option value="anthropic:claude-haiku-4-5-20251001" disabled={!hasApiKey('anthropic')}>Claude Haiku 4.5 (Fast)</option>
-                    <option value="anthropic:claude-sonnet-4-5-20250929" disabled={!hasApiKey('anthropic')}>Claude Sonnet 4.5</option>
-                    <option value="anthropic:claude-opus-4-5-20251101" disabled={!hasApiKey('anthropic')}>Claude Opus 4.5 (Latest)</option>
+                    <option value="anthropic:claude-haiku-4-5" disabled={!hasApiKey('anthropic')}>Claude Haiku 4.5 (Fast)</option>
+                    <option value="anthropic:claude-sonnet-4-5" disabled={!hasApiKey('anthropic')}>Claude Sonnet 4.5</option>
+                    <option value="anthropic:claude-opus-4-5" disabled={!hasApiKey('anthropic')}>Claude Opus 4.5 (Latest)</option>
                   </optgroup>
                   <optgroup label={`Google${!hasApiKey('gemini') ? ' (No API Key)' : ''}`}>
                     <option value="gemini:gemini-2.5-flash" disabled={!hasApiKey('gemini')}>Gemini 2.5 Flash (Fast)</option>

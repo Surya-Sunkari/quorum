@@ -132,7 +132,7 @@ POST /ask
   "return_agent_outputs": false,
   "mixed_models": [
     { "model": "openai:gpt-4.1-mini", "count": 2 },
-    { "model": "anthropic:claude-haiku-4-5-20251001", "count": 1 },
+    { "model": "anthropic:claude-haiku-4-5", "count": 1 },
     { "model": "gemini:gemini-2.5-flash", "count": 1 }
   ],
   "api_keys": {
@@ -155,9 +155,9 @@ Models use the format `provider:model-name`.
 - `openai:gpt-5.2` (latest)
 
 ### Anthropic (Claude)
-- `anthropic:claude-opus-4-5-20251101` (most capable)
-- `anthropic:claude-sonnet-4-5-20250929`
-- `anthropic:claude-haiku-4-5-20251001` (fast)
+- `anthropic:claude-opus-4-5` (most capable)
+- `anthropic:claude-sonnet-4-5`
+- `anthropic:claude-haiku-4-5` (fast)
 
 ### Google Gemini
 - `gemini:gemini-3-pro-preview`

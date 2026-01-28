@@ -134,9 +134,9 @@ Models use the format `provider:model-name` in API requests.
 
 | Model | Description |
 |-------|-------------|
-| `anthropic:claude-opus-4-5-20251101` | Most capable Claude model |
-| `anthropic:claude-sonnet-4-5-20250929` | Balanced performance |
-| `anthropic:claude-haiku-4-5-20251001` | Fast and efficient |
+| `anthropic:claude-opus-4-5` | Most capable Claude model |
+| `anthropic:claude-sonnet-4-5` | Balanced performance |
+| `anthropic:claude-haiku-4-5` | Fast and efficient |
 
 ### Google Gemini
 
@@ -188,7 +188,7 @@ Request:
   "return_agent_outputs": true,
   "mixed_models": [
     { "model": "openai:gpt-4.1-mini", "count": 2 },
-    { "model": "anthropic:claude-haiku-4-5-20251001", "count": 1 }
+    { "model": "anthropic:claude-haiku-4-5", "count": 1 }
   ],
   "api_keys": {
     "openai": "sk-...",

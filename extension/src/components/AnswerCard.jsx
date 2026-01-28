@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import StatusBadge from './StatusBadge';
 import MathText from './MathText';
+import { getModelDisplayName } from '../utils/storage';
 
 function AnswerCard({ result, showDetails }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -112,7 +113,7 @@ function AnswerCard({ result, showDetails }) {
                           </span>
                           {output.model && (
                             <span className="text-xs text-quorum-500 bg-quorum-50 px-1.5 py-0.5 rounded">
-                              {output.model.split(':')[1] || output.model}
+                              {getModelDisplayName(output.model)}
                             </span>
                           )}
                         </div>
