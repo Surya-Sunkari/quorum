@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function ErrorMessage({ message, details, onDismiss }) {
+function ErrorMessage({ message, details, onDismiss, onUpgrade }) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
@@ -21,7 +21,15 @@ function ErrorMessage({ message, details, onDismiss }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm text-red-700">{message}</p>
-          {details && (
+          {onUpgrade && (
+            <button
+              onClick={onUpgrade}
+              className="mt-2 px-3 py-1.5 text-xs font-medium text-white bg-quorum-500 hover:bg-quorum-600 rounded-lg transition-colors"
+            >
+              Upgrade to Pro
+            </button>
+          )}
+          {details && !onUpgrade && (
             <>
               <button
                 onClick={() => setShowDetails(!showDetails)}

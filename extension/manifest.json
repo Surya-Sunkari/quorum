@@ -5,8 +5,13 @@
   "description": "Get consensus-based answers from multiple AI agents.",
   "permissions": [
     "storage",
-    "sidePanel"
+    "sidePanel",
+    "identity"
   ],
+  "oauth2": {
+    "client_id": "697955456206-5egv95aajp4766aoq1cs14i65s69l6qv.apps.googleusercontent.com",
+    "scopes": ["openid", "email", "profile"]
+  },
   "host_permissions": [
     "http://localhost:5000/*",
     "https://*/*"

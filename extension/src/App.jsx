@@ -3,22 +3,26 @@ import Header from './components/Header';
 import QuestionInput from './components/QuestionInput';
 import AnswerCard from './components/AnswerCard';
 import SettingsPanel from './components/SettingsPanel';
+import LoginScreen from './components/LoginScreen';
 import LoadingState from './components/LoadingState';
 import ErrorMessage from './components/ErrorMessage';
+import UsageDisplay from './components/UsageDisplay';
 import {
   getSettings,
   getSessionState,
   saveSessionState,
   HOSTED_CONFIG,
-  getHostedApiKey,
-  getUserApiKey,
   getMixedModelsArray,
   getTotalMixedAgents,
 } from './utils/storage';
-import { askQuestion } from './utils/api';
+import { askQuestion, getUserInfo, createCheckoutSession } from './utils/api';
+import { getStoredAuth, signOut, refreshAuthIfNeeded } from './utils/auth';
 
 function App() {
   const [settings, setSettings] = useState(null);
+  const [auth, setAuth] = useState(null);          // { token, user: { id, email, tier } }
+  const [usageInfo, setUsageInfo] = useState(null); // { count, limit, period }
+  const [authLoading, setAuthLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [question, setQuestion] = useState('');
   const [image, setImage] = useState(null);
@@ -28,14 +32,33 @@ function App() {
   const [error, setError] = useState(null);
   const [errorDetails, setErrorDetails] = useState(null);
 
-  // Load settings and session state on mount
+  const backendUrl = HOSTED_CONFIG.backend_url;
+
+  // Load settings, session state, and auth on mount
   useEffect(() => {
     getSettings().then(setSettings);
     getSessionState().then((session) => {
       if (session.question) setQuestion(session.question);
       if (session.image) setImage(session.image);
     });
+
+    // Check for existing auth (refresh if token is expired)
+    refreshAuthIfNeeded().then((stored) => {
+      setAuth(stored);
+      setAuthLoading(false);
+    });
   }, []);
+
+  // Fetch usage info whenever auth changes
+  useEffect(() => {
+    if (auth?.token) {
+      getUserInfo(backendUrl, auth.token)
+        .then((info) => setUsageInfo(info.usage))
+        .catch(() => {}); // non-fatal
+    } else {
+      setUsageInfo(null);
+    }
+  }, [auth, backendUrl]);
 
   // Save session state when question or image changes
   useEffect(() => {
@@ -44,20 +67,39 @@ function App() {
     }
   }, [question, image, settings]);
 
+  const handleAuthSuccess = (authData) => {
+    setAuth(authData);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setAuth(null);
+    setUsageInfo(null);
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      const { checkout_url } = await createCheckoutSession(backendUrl, auth.token);
+      if (typeof chrome !== 'undefined' && chrome.tabs) {
+        chrome.tabs.create({ url: checkout_url });
+      } else {
+        window.open(checkout_url, '_blank');
+      }
+    } catch (err) {
+      setError('Could not open upgrade page. Please try again.');
+    }
+  };
+
   const handleSettingsSaved = (newSettings) => {
     setSettings(newSettings);
     setShowSettings(false);
   };
 
   const handleOpenSidebar = useCallback(async () => {
-    // Save current state before opening sidebar
     await saveSessionState({ question, image });
-
-    // Send message to background script to open side panel
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage({ action: 'openSidePanel' }, (response) => {
         if (response?.success) {
-          // Close the popup after opening sidebar
           window.close();
         }
       });
@@ -70,41 +112,13 @@ function App() {
       return;
     }
 
-    // Determine which backend to use
-    const useHosted = settings.use_hosted_backend;
-    const backendUrl = useHosted ? HOSTED_CONFIG.backend_url : settings.backend_url;
-
-    // Check if using mixed mode
     const isMixedMode = settings.mixed_mode;
     const mixedModels = isMixedMode ? getMixedModelsArray(settings.mixed_model_configs) : [];
     const totalAgents = isMixedMode ? getTotalMixedAgents(settings.mixed_model_configs) : settings.n_agents;
 
-    // Validate configuration
     if (isMixedMode && mixedModels.length === 0) {
       setError('Please add at least 1 agent in mixed model settings');
       return;
-    }
-
-    // Build API keys based on mode
-    if (isMixedMode) {
-      // For mixed mode, collect API keys for all providers used
-      const providersUsed = new Set(mixedModels.map((m) => m.model.split(':')[0]));
-      for (const provider of providersUsed) {
-        const hasKey = useHosted
-          ? !!HOSTED_CONFIG.api_keys[provider]
-          : !!settings[`${provider}_api_key`];
-        if (!hasKey) {
-          setError(`Please configure the ${provider} API key for mixed model mode`);
-          return;
-        }
-      }
-    } else {
-      // Single model mode - check single API key
-      const apiKey = useHosted ? getHostedApiKey(settings.model) : getUserApiKey(settings, settings.model);
-      if (!useHosted && !apiKey) {
-        setError('Please configure the API key for the selected model provider in settings');
-        return;
-      }
     }
 
     setLoading(true);
@@ -113,41 +127,27 @@ function App() {
     setResult(null);
 
     try {
-      if (totalAgents > 1) {
-        setLoadingMessage(`Running ${totalAgents} agents${isMixedMode ? ' (mixed models)' : ''}...`);
-      } else {
-        setLoadingMessage(`Running 1 agent...`);
-      }
+      setLoadingMessage(`Running ${totalAgents} agent${totalAgents !== 1 ? 's' : ''}${isMixedMode ? ' (mixed models)' : ''}...`);
 
       let requestBody;
 
       if (isMixedMode) {
-        // Mixed model mode request
-        const apiKeys = {
-          openai: useHosted ? HOSTED_CONFIG.api_keys.openai : settings.openai_api_key || null,
-          anthropic: useHosted ? HOSTED_CONFIG.api_keys.anthropic : settings.anthropic_api_key || null,
-          gemini: useHosted ? HOSTED_CONFIG.api_keys.gemini : settings.gemini_api_key || null,
-        };
-
         requestBody = {
           question: question.trim(),
           agreement_ratio: settings.agreement_ratio,
           max_rounds: settings.max_rounds,
           return_agent_outputs: settings.return_agent_outputs || settings.debug_mode,
           mixed_models: mixedModels,
-          api_keys: apiKeys,
+          // api_keys not needed — backend uses Quorum's keys
         };
       } else {
-        // Single model mode request
-        const apiKey = useHosted ? getHostedApiKey(settings.model) : getUserApiKey(settings, settings.model);
-
         requestBody = {
           question: question.trim(),
-          n_agents: settings.n_agents > 1 ? settings.n_agents : 1,
+          n_agents: settings.n_agents,
           agreement_ratio: settings.agreement_ratio,
           max_rounds: settings.max_rounds,
           model: settings.model,
-          api_key: apiKey,
+          // api_key not needed — backend uses Quorum's keys
           return_agent_outputs: settings.return_agent_outputs || settings.debug_mode,
         };
       }
@@ -156,17 +156,41 @@ function App() {
         requestBody.image = image;
       }
 
-      const response = await askQuestion(backendUrl, requestBody);
+      const response = await askQuestion(backendUrl, requestBody, auth?.token);
 
       setLoadingMessage('Checking agreement...');
-
-      // Small delay to show the checking message
       await new Promise((r) => setTimeout(r, 300));
 
       setResult(response);
+
+      // Refresh usage counter after a successful ask
+      getUserInfo(backendUrl, auth.token)
+        .then((info) => setUsageInfo(info.usage))
+        .catch(() => {});
     } catch (err) {
+      // Handle auth errors
+      if (err.status === 401) {
+        await signOut();
+        setAuth(null);
+        setError('Session expired. Please sign in again.');
+        return;
+      }
+
+      // Handle upgrade-required (free tier model restriction)
+      if (err.status === 403 && err.details?.code === 'UPGRADE_REQUIRED') {
+        setError('This model requires a paid subscription.');
+        setErrorDetails({ upgrade: true, ...err.details });
+        return;
+      }
+
+      // Handle usage limit reached
+      if (err.status === 429 && err.details?.code === 'USAGE_LIMIT_REACHED') {
+        setError(err.message);
+        setErrorDetails({ upgrade: true, ...err.details });
+        return;
+      }
+
       setError(err.message || 'Failed to get response');
-      // Capture detailed error info if available
       if (err.details) {
         setErrorDetails(err.details);
       }
@@ -182,10 +206,20 @@ function App() {
     }
   };
 
-  if (!settings) {
+  // Still initializing
+  if (!settings || authLoading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-quorum-500"></div>
+      </div>
+    );
+  }
+
+  // Not authenticated — show login
+  if (!auth) {
+    return (
+      <div className="flex flex-col h-full">
+        <LoginScreen onSuccess={handleAuthSuccess} />
       </div>
     );
   }
@@ -195,13 +229,21 @@ function App() {
       <Header
         onSettingsClick={() => setShowSettings(true)}
         onSidebarClick={handleOpenSidebar}
+        auth={auth}
+        onSignOut={handleSignOut}
+        onUpgrade={handleUpgrade}
       />
+
+      {auth.user?.tier === 'free' && usageInfo && (
+        <UsageDisplay count={usageInfo.count} limit={usageInfo.limit} />
+      )}
 
       {showSettings ? (
         <SettingsPanel
           settings={settings}
           onSave={handleSettingsSaved}
           onCancel={() => setShowSettings(false)}
+          userTier={auth.user?.tier}
         />
       ) : (
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -225,6 +267,7 @@ function App() {
                 setError(null);
                 setErrorDetails(null);
               }}
+              onUpgrade={errorDetails?.upgrade ? handleUpgrade : null}
             />
           )}
 

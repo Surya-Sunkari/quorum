@@ -3,132 +3,72 @@ import {
   saveSettings,
   resetSettings,
   DEFAULT_SETTINGS,
-  HOSTED_CONFIG,
-  getProviderFromModel,
   AVAILABLE_MODELS,
   getTotalMixedAgents,
+  FREE_TIER_MODELS,
 } from '../utils/storage';
-import { validateApiKey, checkBackendHealth } from '../utils/api';
 
-function SettingsPanel({ settings, onSave, onCancel }) {
+function SettingsPanel({ settings, onSave, onCancel, userTier }) {
   const [form, setForm] = useState({ ...settings });
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState({}); // Track testing state per provider
-  const [testResults, setTestResults] = useState({}); // Track test results per provider
   const [errors, setErrors] = useState({});
-  const [devSettingsOpen, setDevSettingsOpen] = useState(false);
+
+  const isPaid = userTier === 'paid';
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setErrors((prev) => ({ ...prev, [field]: null }));
   };
 
-  // Helper to update mixed model config counts
   const updateMixedModelCount = (modelId, count) => {
     const newConfigs = { ...form.mixed_model_configs };
-    const parsedCount = parseInt(count) || 0;
-    if (parsedCount >= 1) {
-      newConfigs[modelId] = parsedCount;
+    const parsed = parseInt(count) || 0;
+    if (parsed >= 1) {
+      newConfigs[modelId] = parsed;
     } else {
       delete newConfigs[modelId];
     }
     updateField('mixed_model_configs', newConfigs);
   };
 
-  // Get count for a specific model in mixed mode
-  const getMixedModelCount = (modelId) => {
-    return form.mixed_model_configs?.[modelId] || 0;
-  };
+  const getMixedModelCount = (modelId) => form.mixed_model_configs?.[modelId] || 0;
 
-  // Get total agents in mixed mode
   const totalMixedAgents = getTotalMixedAgents(form.mixed_model_configs);
 
-  // Provider display names
   const providerNames = {
     openai: 'OpenAI',
     anthropic: 'Anthropic',
     gemini: 'Google Gemini',
   };
 
+  const isModelAvailable = (modelId) => isPaid || FREE_TIER_MODELS.has(modelId);
+
   const validate = () => {
     const newErrors = {};
 
     if (form.mixed_mode) {
-      // Mixed mode validation
-      if (totalMixedAgents < 1) {
-        newErrors.mixed_models = 'Add at least 1 agent';
-      }
-      if (totalMixedAgents > 10) {
-        newErrors.mixed_models = 'Maximum 10 agents total';
-      }
-
-      // Check API keys for providers used in mixed mode
-      if (!form.use_hosted_backend) {
-        const providersUsed = new Set();
-        Object.keys(form.mixed_model_configs || {}).forEach((modelId) => {
-          if (form.mixed_model_configs[modelId] >= 1) {
-            providersUsed.add(getProviderFromModel(modelId));
-          }
-        });
-        for (const provider of providersUsed) {
-          const apiKeyField = `${provider}_api_key`;
-          if (!form[apiKeyField]) {
-            newErrors[apiKeyField] = `${providerNames[provider]} API key is required`;
-          }
-        }
-      }
+      if (totalMixedAgents < 1) newErrors.mixed_models = 'Add at least 1 agent';
+      if (totalMixedAgents > 10) newErrors.mixed_models = 'Maximum 10 agents total';
     } else {
-      // Single model mode validation
-      if (form.n_agents < 1 || form.n_agents > 10) {
-        newErrors.n_agents = 'Must be between 1 and 10';
-      }
-
+      if (form.n_agents < 1 || form.n_agents > 10) newErrors.n_agents = 'Must be between 1 and 10';
       const validPrefixes = ['openai:', 'anthropic:', 'gemini:'];
-      if (!validPrefixes.some((prefix) => form.model.startsWith(prefix))) {
-        newErrors.model = 'Invalid model format';
-      }
-
-      // Validate API key for selected provider if not using hosted backend
-      if (!form.use_hosted_backend) {
-        const provider = getProviderFromModel(form.model);
-        const apiKeyField = `${provider}_api_key`;
-        if (!form[apiKeyField]) {
-          newErrors[apiKeyField] = `${providerNames[provider]} API key is required for selected model`;
-        }
-      }
+      if (!validPrefixes.some((p) => form.model.startsWith(p))) newErrors.model = 'Invalid model format';
     }
 
-    if (form.agreement_ratio < 0 || form.agreement_ratio > 1) {
-      newErrors.agreement_ratio = 'Must be between 0 and 1';
-    }
-
-    if (form.max_rounds < 0 || form.max_rounds > 5) {
-      newErrors.max_rounds = 'Must be between 0 and 5';
-    }
-
-    // Only validate backend_url if not using hosted backend
-    if (!form.use_hosted_backend && !form.backend_url) {
-      newErrors.backend_url = 'Backend URL is required';
-    }
+    if (form.agreement_ratio < 0 || form.agreement_ratio > 1) newErrors.agreement_ratio = 'Must be between 0 and 1';
+    if (form.max_rounds < 0 || form.max_rounds > 5) newErrors.max_rounds = 'Must be between 0 and 5';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Check if a provider has an API key configured
-  const hasApiKey = (provider) => {
-    if (form.use_hosted_backend) return true;
-    return !!form[`${provider}_api_key`];
-  };
-
   const handleSave = async () => {
     if (!validate()) return;
-
     setSaving(true);
     try {
       await saveSettings(form);
       onSave(form);
-    } catch (err) {
+    } catch {
       setErrors({ general: 'Failed to save settings' });
     } finally {
       setSaving(false);
@@ -139,37 +79,6 @@ function SettingsPanel({ settings, onSave, onCancel }) {
     if (confirm('Reset all settings to defaults?')) {
       await resetSettings();
       setForm({ ...DEFAULT_SETTINGS });
-    }
-  };
-
-  // Test a specific provider's API key
-  const handleTestKey = async (provider) => {
-    const apiKey = form[`${provider}_api_key`];
-    if (!apiKey) {
-      setTestResults((prev) => ({ ...prev, [provider]: { valid: false, error: 'Please enter an API key' } }));
-      return;
-    }
-
-    setTesting((prev) => ({ ...prev, [provider]: true }));
-    setTestResults((prev) => ({ ...prev, [provider]: null }));
-
-    try {
-      // First check if backend is reachable
-      const backendOk = await checkBackendHealth(form.backend_url);
-      if (!backendOk) {
-        setTestResults((prev) => ({
-          ...prev,
-          [provider]: { valid: false, error: 'Cannot reach backend. Is it running?' },
-        }));
-        return;
-      }
-
-      const result = await validateApiKey(form.backend_url, apiKey, provider);
-      setTestResults((prev) => ({ ...prev, [provider]: result }));
-    } catch (err) {
-      setTestResults((prev) => ({ ...prev, [provider]: { valid: false, error: err.message } }));
-    } finally {
-      setTesting((prev) => ({ ...prev, [provider]: false }));
     }
   };
 
@@ -223,10 +132,10 @@ function SettingsPanel({ settings, onSave, onCancel }) {
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
                 >
                   {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
-                    <optgroup key={provider} label={`${providerNames[provider]}${!hasApiKey(provider) ? ' (No API Key)' : ''}`}>
+                    <optgroup key={provider} label={providerNames[provider]}>
                       {models.map((model) => (
-                        <option key={model.id} value={model.id} disabled={!hasApiKey(provider)}>
-                          {model.name}{model.description ? ` (${model.description})` : ''}
+                        <option key={model.id} value={model.id} disabled={!isModelAvailable(model.id)}>
+                          {model.name} ({model.description}){!isModelAvailable(model.id) ? ' — Pro' : ''}
                         </option>
                       ))}
                     </optgroup>
@@ -267,39 +176,40 @@ function SettingsPanel({ settings, onSave, onCancel }) {
             /* Mixed Model Mode */
             <>
               <p className="text-xs text-gray-500">
-                Configure agents from multiple models. Total: <span className="font-medium text-quorum-600">{totalMixedAgents}</span> / 10
+                Configure agents from multiple models. Total:{' '}
+                <span className="font-medium text-quorum-600">{totalMixedAgents}</span> / 10
               </p>
               {errors.mixed_models && <p className="text-xs text-red-500">{errors.mixed_models}</p>}
 
-              {/* Provider sections */}
               {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
                 <div key={provider} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-600">{providerNames[provider]}</span>
-                    {!hasApiKey(provider) && (
-                      <span className="text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">No API Key</span>
-                    )}
-                  </div>
+                  <span className="text-xs font-medium text-gray-600">{providerNames[provider]}</span>
                   <div className="grid grid-cols-1 gap-2">
-                    {models.map((model) => (
-                      <div key={model.id} className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="10"
-                          value={getMixedModelCount(model.id)}
-                          onChange={(e) => updateMixedModelCount(model.id, e.target.value)}
-                          disabled={!hasApiKey(provider)}
-                          className="w-14 px-2 py-1 text-sm text-center border border-gray-200 rounded-lg focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 disabled:bg-gray-50 disabled:text-gray-400"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className={`text-sm ${!hasApiKey(provider) ? 'text-gray-400' : 'text-gray-700'}`}>
-                            {model.name}
-                          </span>
-                          <span className="text-xs text-gray-400 ml-1">({model.description})</span>
+                    {models.map((model) => {
+                      const available = isModelAvailable(model.id);
+                      return (
+                        <div key={model.id} className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            value={getMixedModelCount(model.id)}
+                            onChange={(e) => updateMixedModelCount(model.id, e.target.value)}
+                            disabled={!available}
+                            className="w-14 px-2 py-1 text-sm text-center border border-gray-200 rounded-lg focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 disabled:bg-gray-50 disabled:text-gray-400"
+                          />
+                          <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                            <span className={`text-sm ${!available ? 'text-gray-400' : 'text-gray-700'}`}>
+                              {model.name}
+                            </span>
+                            <span className="text-xs text-gray-400">({model.description})</span>
+                            {!available && (
+                              <span className="text-xs text-quorum-500 bg-quorum-50 px-1.5 py-0.5 rounded">Pro</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -367,154 +277,6 @@ function SettingsPanel({ settings, onSave, onCancel }) {
               <p className="text-xs text-gray-400">Include individual agent responses</p>
             </div>
           </label>
-        </div>
-
-        {/* Developer Settings (Collapsible) */}
-        <div className="bg-white rounded-2xl shadow-bubbly overflow-hidden">
-          <button
-            onClick={() => setDevSettingsOpen(!devSettingsOpen)}
-            className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-          >
-            <h3 className="text-sm font-medium text-gray-700">Developer Settings</h3>
-            <svg
-              className={`w-5 h-5 text-gray-400 transition-transform ${devSettingsOpen ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {devSettingsOpen && (
-            <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
-              {/* Hosted Backend Toggle */}
-              <div className="pt-3 flex items-center justify-between">
-                <div>
-                  <span className="text-sm text-gray-700">Use Hosted Backend</span>
-                  <p className="text-xs text-gray-400">Use Quorum's servers (no API key needed)</p>
-                </div>
-                <button
-                  onClick={() => updateField('use_hosted_backend', !form.use_hosted_backend)}
-                  className={`relative w-11 h-6 rounded-full transition-colors ${
-                    form.use_hosted_backend ? 'bg-quorum-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                      form.use_hosted_backend ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {!form.use_hosted_backend && (
-                <>
-                  {/* OpenAI API Key */}
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">OpenAI API Key</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="password"
-                        value={form.openai_api_key || ''}
-                        onChange={(e) => updateField('openai_api_key', e.target.value)}
-                        placeholder="sk-..."
-                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-                      />
-                      <button
-                        onClick={() => handleTestKey('openai')}
-                        disabled={testing.openai}
-                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
-                      >
-                        {testing.openai ? '...' : 'Test'}
-                      </button>
-                    </div>
-                    {testResults.openai && (
-                      <p className={`text-xs mt-1 ${testResults.openai.valid ? 'text-green-600' : 'text-red-500'}`}>
-                        {testResults.openai.valid ? 'API key is valid!' : testResults.openai.error}
-                      </p>
-                    )}
-                    {errors.openai_api_key && (
-                      <p className="text-xs text-red-500 mt-1">{errors.openai_api_key}</p>
-                    )}
-                  </div>
-
-                  {/* Anthropic API Key */}
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Anthropic API Key</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="password"
-                        value={form.anthropic_api_key || ''}
-                        onChange={(e) => updateField('anthropic_api_key', e.target.value)}
-                        placeholder="sk-ant-..."
-                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-                      />
-                      <button
-                        onClick={() => handleTestKey('anthropic')}
-                        disabled={testing.anthropic}
-                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
-                      >
-                        {testing.anthropic ? '...' : 'Test'}
-                      </button>
-                    </div>
-                    {testResults.anthropic && (
-                      <p className={`text-xs mt-1 ${testResults.anthropic.valid ? 'text-green-600' : 'text-red-500'}`}>
-                        {testResults.anthropic.valid ? 'API key is valid!' : testResults.anthropic.error}
-                      </p>
-                    )}
-                    {errors.anthropic_api_key && (
-                      <p className="text-xs text-red-500 mt-1">{errors.anthropic_api_key}</p>
-                    )}
-                  </div>
-
-                  {/* Gemini API Key */}
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Google Gemini API Key</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="password"
-                        value={form.gemini_api_key || ''}
-                        onChange={(e) => updateField('gemini_api_key', e.target.value)}
-                        placeholder="AIza..."
-                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-                      />
-                      <button
-                        onClick={() => handleTestKey('gemini')}
-                        disabled={testing.gemini}
-                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors disabled:opacity-50"
-                      >
-                        {testing.gemini ? '...' : 'Test'}
-                      </button>
-                    </div>
-                    {testResults.gemini && (
-                      <p className={`text-xs mt-1 ${testResults.gemini.valid ? 'text-green-600' : 'text-red-500'}`}>
-                        {testResults.gemini.valid ? 'API key is valid!' : testResults.gemini.error}
-                      </p>
-                    )}
-                    {errors.gemini_api_key && (
-                      <p className="text-xs text-red-500 mt-1">{errors.gemini_api_key}</p>
-                    )}
-                  </div>
-
-                  {/* Backend URL */}
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Backend URL</label>
-                    <input
-                      type="text"
-                      value={form.backend_url}
-                      onChange={(e) => updateField('backend_url', e.target.value)}
-                      placeholder="http://localhost:5000"
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100"
-                    />
-                    {errors.backend_url && (
-                      <p className="text-xs text-red-500 mt-1">{errors.backend_url}</p>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Actions */}

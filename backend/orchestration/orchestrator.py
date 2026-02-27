@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any
 from providers.base import BaseProvider
 from providers import get_provider
@@ -7,14 +8,28 @@ from .agents import AnswerAgent
 from .arbiter import ArbiterAgent
 
 
-# Arbiter model configuration
-ARBITER_MODEL = "openai:gpt-5.2"
-# Fallback models in order of preference if OpenAI key not available
+# Arbiter model priority — uses the first model whose API key is available
 ARBITER_FALLBACK_MODELS = [
     ("openai", "openai:gpt-5.2"),
-    ("anthropic", "anthropic:claude-opus-4-5"),
+    ("anthropic", "anthropic:claude-opus-4-6"),
     ("gemini", "gemini:gemini-3-pro-preview"),
 ]
+
+# Map provider names to their environment variable names
+PROVIDER_ENV_KEYS = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+}
+
+
+def _get_hosted_api_key(provider: str) -> str:
+    """Read the hosted API key for a provider from environment variables."""
+    env_var = PROVIDER_ENV_KEYS.get(provider, "")
+    key = os.environ.get(env_var, "")
+    if not key:
+        raise ValueError(f"Hosted API key for provider '{provider}' is not configured (missing {env_var})")
+    return key
 
 
 class Orchestrator:
@@ -29,28 +44,19 @@ class Orchestrator:
         self.arbiter: ArbiterAgent | None = None
         self.all_outputs: list[list[AgentOutput]] = []  # Outputs per round
 
-    def _get_api_key_for_provider(self, provider: str) -> str | None:
-        """Get the API key for a specific provider."""
-        if self.request.is_mixed_mode() and self.request.api_keys:
-            return getattr(self.request.api_keys, provider, None)
-        elif not self.request.is_mixed_mode():
-            # Single-model mode - check if the model matches the provider
-            if self.request.model.startswith(f"{provider}:"):
-                return self.request.api_key
-        return None
-
     def _create_arbiter_provider(self) -> BaseProvider:
         """
-        Create provider for arbiter. Always uses GPT-5.2 if OpenAI key available,
-        otherwise falls back to best available model.
+        Create provider for the arbiter. Tries each fallback model in order,
+        using the first one whose hosted API key is configured.
         """
         for provider_name, model in ARBITER_FALLBACK_MODELS:
-            api_key = self._get_api_key_for_provider(provider_name)
-            if api_key:
+            try:
+                api_key = _get_hosted_api_key(provider_name)
                 return get_provider(model=model, api_key=api_key)
+            except ValueError:
+                continue
 
-        # If we get here, something went wrong with validation
-        raise ValueError("No API key available for arbiter")
+        raise ValueError("No hosted API key is configured for any arbiter model. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY.")
 
     def _setup_agents(self) -> None:
         """Initialize answer agents and arbiter based on mode."""
@@ -60,7 +66,7 @@ class Orchestrator:
             # Mixed-model mode: create agents for each model config
             for model_config in self.request.mixed_models:
                 provider_name = model_config.model.split(":")[0]
-                api_key = getattr(self.request.api_keys, provider_name)
+                api_key = _get_hosted_api_key(provider_name)
                 provider = get_provider(model=model_config.model, api_key=api_key)
 
                 for _ in range(model_config.count):
@@ -74,7 +80,9 @@ class Orchestrator:
                     agent_id += 1
         else:
             # Single-model mode: all agents use the same provider
-            provider = get_provider(model=self.request.model, api_key=self.request.api_key)
+            provider_name = self.request.model.split(":")[0]
+            api_key = _get_hosted_api_key(provider_name)
+            provider = get_provider(model=self.request.model, api_key=api_key)
             for i in range(self.request.n_agents):
                 self.agents.append(
                     AnswerAgent(
@@ -84,7 +92,7 @@ class Orchestrator:
                     )
                 )
 
-        # Arbiter always uses GPT-5.2 (or best available fallback)
+        # Arbiter always uses the best available model
         arbiter_provider = self._create_arbiter_provider()
         self.arbiter = ArbiterAgent(provider=arbiter_provider)
 

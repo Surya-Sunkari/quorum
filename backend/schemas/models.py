@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from enum import Enum
 
@@ -24,10 +24,10 @@ class ModelConfig(BaseModel):
 
 
 class ApiKeys(BaseModel):
-    """API keys for each provider."""
-    openai: Optional[str] = Field(default=None, description="OpenAI API key")
-    anthropic: Optional[str] = Field(default=None, description="Anthropic API key")
-    gemini: Optional[str] = Field(default=None, description="Google Gemini API key")
+    """API keys for each provider (legacy field, unused — backend uses hosted keys)."""
+    openai: Optional[str] = None
+    anthropic: Optional[str] = None
+    gemini: Optional[str] = None
 
 
 class AskRequest(BaseModel):
@@ -37,7 +37,7 @@ class AskRequest(BaseModel):
     agreement_ratio: float = Field(default=0.67, ge=0.0, le=1.0)
     max_rounds: int = Field(default=2, ge=0, le=5)
     model: str = Field(default="openai:gpt-4.1-mini")
-    api_key: str = Field(default="", description="API key for single-model mode")
+    api_key: Optional[str] = Field(default=None, description="Unused — backend uses hosted API keys")
     return_agent_outputs: bool = Field(default=False)
 
     # Mixed-model mode fields
@@ -47,14 +47,8 @@ class AskRequest(BaseModel):
     )
     api_keys: Optional[ApiKeys] = Field(
         default=None,
-        description="API keys for each provider (required for mixed-model mode)"
+        description="Unused — backend uses hosted API keys"
     )
-
-    @field_validator("question")
-    @classmethod
-    def validate_question_or_image(cls, v, info):
-        # Question can be empty if image is provided
-        return v
 
     @field_validator("model")
     @classmethod
@@ -63,31 +57,6 @@ class AskRequest(BaseModel):
         if not any(v.startswith(prefix) for prefix in valid_prefixes):
             raise ValueError("Model must start with 'openai:', 'anthropic:', or 'gemini:'")
         return v
-
-    @model_validator(mode="after")
-    def validate_api_keys_provided(self):
-        """Ensure appropriate API keys are provided based on mode."""
-        if self.mixed_models:
-            # Mixed-model mode: need api_keys object
-            if not self.api_keys:
-                raise ValueError("api_keys is required for mixed-model mode")
-
-            # Check that API keys are provided for each used provider
-            providers_needed = set()
-            for mc in self.mixed_models:
-                provider = mc.model.split(":")[0]
-                providers_needed.add(provider)
-
-            for provider in providers_needed:
-                key = getattr(self.api_keys, provider, None)
-                if not key:
-                    raise ValueError(f"API key for {provider} is required (used in mixed_models)")
-        else:
-            # Single-model mode: need api_key
-            if not self.api_key:
-                raise ValueError("api_key is required for single-model mode")
-
-        return self
 
     def get_total_agents(self) -> int:
         """Get total number of agents across all models."""

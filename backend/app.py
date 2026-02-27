@@ -1,11 +1,12 @@
 import asyncio
 import os
 import sys
+from datetime import datetime, timezone
 
 # Add backend to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from dotenv import load_dotenv
 from pydantic import ValidationError
@@ -13,11 +14,18 @@ from pydantic import ValidationError
 from schemas.models import AskRequest, AskResponse
 from orchestration.orchestrator import Orchestrator
 from providers import get_provider
+from auth.routes import auth_bp
+from billing.routes import billing_bp
+from auth.middleware import require_auth
+from auth.db import increment_usage
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for extension requests
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(billing_bp)
 
 # Server-side limits (can be overridden by env vars)
 MAX_AGENTS = int(os.getenv("MAX_AGENTS", "10"))
@@ -70,6 +78,7 @@ def validate_key():
 
 
 @app.route("/ask", methods=["POST"])
+@require_auth
 def ask():
     """
     Main endpoint for asking questions to the multi-agent system.
@@ -120,6 +129,10 @@ def ask():
         asyncio.set_event_loop(loop)
         response = loop.run_until_complete(orchestrator.run())
         loop.close()
+
+        # Track usage for authenticated user
+        period = datetime.now(tz=timezone.utc).strftime("%Y-%m")
+        increment_usage(g.user["id"], period)
 
         return jsonify(response.model_dump())
 

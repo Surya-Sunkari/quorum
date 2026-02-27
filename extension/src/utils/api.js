@@ -2,26 +2,33 @@
  * API client for communicating with the Quorum backend.
  */
 
+function authHeaders(authToken) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  return headers;
+}
+
 /**
  * Send a question to the backend.
  * @param {string} backendUrl - Backend URL
  * @param {object} params - Request parameters
+ * @param {string} authToken - JWT auth token
  * @returns {Promise<object>} Response from backend
  */
-export async function askQuestion(backendUrl, params) {
+export async function askQuestion(backendUrl, params, authToken) {
   const response = await fetch(`${backendUrl}/ask`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: authHeaders(authToken),
     body: JSON.stringify(params),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
     const error = new Error(errorData.error || errorData.details || `HTTP ${response.status}`);
-    // Attach detailed error info for debugging
     error.details = errorData;
+    error.status = response.status;
     throw error;
   }
 
@@ -29,26 +36,42 @@ export async function askQuestion(backendUrl, params) {
 }
 
 /**
- * Validate an API key with the backend.
+ * Get the current user's profile and usage info.
  * @param {string} backendUrl - Backend URL
- * @param {string} apiKey - API key to validate
- * @param {string} provider - Provider name (openai, anthropic, gemini)
- * @returns {Promise<{valid: boolean, error?: string}>}
+ * @param {string} authToken - JWT auth token
+ * @returns {Promise<{email, tier, usage: {count, limit, period}}>}
  */
-export async function validateApiKey(backendUrl, apiKey, provider) {
-  try {
-    const response = await fetch(`${backendUrl}/validate-key`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ api_key: apiKey, provider }),
-    });
+export async function getUserInfo(backendUrl, authToken) {
+  const response = await fetch(`${backendUrl}/auth/me`, {
+    method: 'GET',
+    headers: authHeaders(authToken),
+  });
 
-    return response.json();
-  } catch (error) {
-    return { valid: false, error: error.message };
+  if (!response.ok) {
+    throw new Error('Failed to load user info');
   }
+
+  return response.json();
+}
+
+/**
+ * Create a Stripe Checkout session for upgrading to paid tier.
+ * @param {string} backendUrl - Backend URL
+ * @param {string} authToken - JWT auth token
+ * @returns {Promise<{checkout_url: string}>}
+ */
+export async function createCheckoutSession(backendUrl, authToken) {
+  const response = await fetch(`${backendUrl}/billing/create-checkout`, {
+    method: 'POST',
+    headers: authHeaders(authToken),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Failed to create checkout session');
+  }
+
+  return response.json();
 }
 
 /**
@@ -58,9 +81,7 @@ export async function validateApiKey(backendUrl, apiKey, provider) {
  */
 export async function checkBackendHealth(backendUrl) {
   try {
-    const response = await fetch(`${backendUrl}/health`, {
-      method: 'GET',
-    });
+    const response = await fetch(`${backendUrl}/health`, { method: 'GET' });
     const data = await response.json();
     return data.status === 'ok';
   } catch {

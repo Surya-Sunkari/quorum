@@ -3,36 +3,42 @@
  * Uses chrome.storage.local for persistence.
  */
 
-// Hosted backend configuration (from environment or defaults)
-const HOSTED_CONFIG = {
+// Quorum hosted backend configuration
+export const HOSTED_CONFIG = {
   backend_url: import.meta.env.VITE_HOSTED_BACKEND_URL || 'http://localhost:5000',
-  api_keys: {
-    openai: import.meta.env.VITE_HOSTED_OPENAI_API_KEY || '',
-    anthropic: import.meta.env.VITE_HOSTED_ANTHROPIC_API_KEY || '',
-    gemini: import.meta.env.VITE_HOSTED_GEMINI_API_KEY || '',
-  },
 };
 
 /**
+ * Models available on the free tier.
+ */
+export const FREE_TIER_MODELS = new Set([
+  'openai:gpt-4.1-mini',
+  'anthropic:claude-haiku-4-5',
+  'gemini:gemini-2.5-flash',
+]);
+
+/**
  * Available models organized by provider.
+ * Each model has: id, name, description, tier ('free' | 'paid').
+ * To add, rename, or remove a model, edit this object only.
  */
 export const AVAILABLE_MODELS = {
   openai: [
-    { id: 'openai:gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Fast' },
-    { id: 'openai:gpt-4.1', name: 'GPT-4.1', description: 'Balanced' },
-    { id: 'openai:gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast, capable' },
-    { id: 'openai:gpt-5.1', name: 'GPT-5.1', description: 'High capability' },
-    { id: 'openai:gpt-5.2', name: 'GPT-5.2', description: 'Latest' },
+    { id: 'openai:gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Fast', tier: 'free' },
+    { id: 'openai:gpt-4.1', name: 'GPT-4.1', description: 'Balanced', tier: 'paid' },
+    { id: 'openai:gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast, capable', tier: 'paid' },
+    { id: 'openai:gpt-5.1', name: 'GPT-5.1', description: 'High capability', tier: 'paid' },
+    { id: 'openai:gpt-5.2', name: 'GPT-5.2', description: 'Latest', tier: 'paid' },
   ],
   anthropic: [
-    { id: 'anthropic:claude-haiku-4-5', name: 'Claude Haiku 4.5', description: 'Fast' },
-    { id: 'anthropic:claude-sonnet-4-6', name: 'Claude Sonnet 4.6', description: 'Balanced' },
-    { id: 'anthropic:claude-opus-4-6', name: 'Claude Opus 4.6', description: 'Most capable' },
+    { id: 'anthropic:claude-haiku-4-5', name: 'Claude Haiku 4.5', description: 'Fast', tier: 'free' },
+    { id: 'anthropic:claude-sonnet-4-6', name: 'Claude Sonnet 4.6', description: 'Balanced', tier: 'paid' },
+    { id: 'anthropic:claude-opus-4-6', name: 'Claude Opus 4.6', description: 'Most capable', tier: 'paid' },
   ],
   gemini: [
-    { id: 'gemini:gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast' },
-    { id: 'gemini:gemini-3-flash-preview', name: 'Gemini 3 Flash', description: 'Fast, capable' },
-    { id: 'gemini:gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Most capable' },
+    { id: 'gemini:gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast', tier: 'free' },
+    { id: 'gemini:gemini-3-flash-preview', name: 'Gemini 3 Flash', description: 'Fast, capable', tier: 'paid' },
+    { id: 'gemini:gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Most capable', tier: 'paid' },
   ],
 };
 
@@ -52,7 +58,6 @@ export const MODEL_DISPLAY_NAMES = Object.fromEntries(
 export function getModelDisplayName(modelId) {
   if (!modelId) return '';
   if (MODEL_DISPLAY_NAMES[modelId]) return MODEL_DISPLAY_NAMES[modelId];
-  // Fallback: extract model name and format it nicely
   const parts = modelId.split(':');
   if (parts.length === 2) {
     return parts[1]
@@ -71,32 +76,16 @@ export function getProviderFromModel(model) {
   if (model.startsWith('openai:')) return 'openai';
   if (model.startsWith('anthropic:')) return 'anthropic';
   if (model.startsWith('gemini:')) return 'gemini';
-  return 'openai'; // Default fallback
+  return 'openai';
 }
 
-/**
- * Get the appropriate API key for a model from hosted config.
- * @param {string} model - Model string in format "provider:model-name"
- * @returns {string} API key for the provider
- */
-export function getHostedApiKey(model) {
-  const provider = getProviderFromModel(model);
-  return HOSTED_CONFIG.api_keys[provider] || '';
-}
-
-const DEFAULT_SETTINGS = {
+export const DEFAULT_SETTINGS = {
   n_agents: 3,
   agreement_ratio: 0.67,
   max_rounds: 2,
   model: 'openai:gpt-4.1-mini',
-  // Provider-specific API keys
-  openai_api_key: '',
-  anthropic_api_key: '',
-  gemini_api_key: '',
   return_agent_outputs: false,
   debug_mode: false,
-  backend_url: 'http://localhost:5000',
-  use_hosted_backend: true, // Default to hosted mode for regular users
   // Mixed-model mode settings
   mixed_mode: false,
   mixed_model_configs: {}, // { 'openai:gpt-4.1-mini': 2, 'anthropic:claude-haiku-4-5': 1 }
@@ -104,8 +93,6 @@ const DEFAULT_SETTINGS = {
 
 /**
  * Get total agent count from mixed model configs.
- * @param {object} mixedModelConfigs - Object mapping model IDs to counts
- * @returns {number} Total agent count
  */
 export function getTotalMixedAgents(mixedModelConfigs) {
   if (!mixedModelConfigs) return 0;
@@ -114,8 +101,6 @@ export function getTotalMixedAgents(mixedModelConfigs) {
 
 /**
  * Convert mixed model configs to API format.
- * @param {object} mixedModelConfigs - Object mapping model IDs to counts
- * @returns {Array} Array of { model, count } objects (only includes models with count >= 1)
  */
 export function getMixedModelsArray(mixedModelConfigs) {
   if (!mixedModelConfigs) return [];
@@ -125,30 +110,7 @@ export function getMixedModelsArray(mixedModelConfigs) {
 }
 
 /**
- * Get the user's API key for a specific provider.
- * @param {object} settings - User settings object
- * @param {string} model - Model string in format "provider:model-name"
- * @returns {string} API key for the provider
- */
-export function getUserApiKey(settings, model) {
-  const provider = getProviderFromModel(model);
-  switch (provider) {
-    case 'openai':
-      return settings.openai_api_key || '';
-    case 'anthropic':
-      return settings.anthropic_api_key || '';
-    case 'gemini':
-      return settings.gemini_api_key || '';
-    default:
-      return '';
-  }
-}
-
-export { HOSTED_CONFIG };
-
-/**
  * Get all settings from storage.
- * @returns {Promise<object>} Settings object with defaults for missing values
  */
 export async function getSettings() {
   return new Promise((resolve) => {
@@ -157,7 +119,6 @@ export async function getSettings() {
         resolve(result);
       });
     } else {
-      // Fallback for development outside extension context
       const stored = localStorage.getItem('quorum_settings');
       if (stored) {
         resolve({ ...DEFAULT_SETTINGS, ...JSON.parse(stored) });
@@ -169,9 +130,7 @@ export async function getSettings() {
 }
 
 /**
- * Save settings to storage.
- * @param {object} settings - Settings to save (can be partial)
- * @returns {Promise<void>}
+ * Save settings to storage (can be partial).
  */
 export async function saveSettings(settings) {
   return new Promise((resolve) => {
@@ -180,7 +139,6 @@ export async function saveSettings(settings) {
         resolve();
       });
     } else {
-      // Fallback for development
       const current = localStorage.getItem('quorum_settings');
       const merged = { ...(current ? JSON.parse(current) : {}), ...settings };
       localStorage.setItem('quorum_settings', JSON.stringify(merged));
@@ -191,23 +149,10 @@ export async function saveSettings(settings) {
 
 /**
  * Reset all settings to defaults.
- * @returns {Promise<void>}
  */
 export async function resetSettings() {
   return saveSettings(DEFAULT_SETTINGS);
 }
-
-/**
- * Get a single setting value.
- * @param {string} key - Setting key
- * @returns {Promise<any>} Setting value or default
- */
-export async function getSetting(key) {
-  const settings = await getSettings();
-  return settings[key];
-}
-
-export { DEFAULT_SETTINGS };
 
 /**
  * Session state - persists question/image between popup and sidebar
