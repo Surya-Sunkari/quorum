@@ -222,23 +222,15 @@ function SettingsPanel({ settings, onSave, onCancel }) {
                   onChange={(e) => updateField('model', e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
                 >
-                  <optgroup label={`OpenAI${!hasApiKey('openai') ? ' (No API Key)' : ''}`}>
-                    <option value="openai:gpt-4.1-mini" disabled={!hasApiKey('openai')}>GPT-4.1 Mini (Fast)</option>
-                    <option value="openai:gpt-4.1" disabled={!hasApiKey('openai')}>GPT-4.1</option>
-                    <option value="openai:gpt-5-mini" disabled={!hasApiKey('openai')}>GPT-5 Mini</option>
-                    <option value="openai:gpt-5.1" disabled={!hasApiKey('openai')}>GPT-5.1</option>
-                    <option value="openai:gpt-5.2" disabled={!hasApiKey('openai')}>GPT-5.2 (Latest)</option>
-                  </optgroup>
-                  <optgroup label={`Anthropic${!hasApiKey('anthropic') ? ' (No API Key)' : ''}`}>
-                    <option value="anthropic:claude-haiku-4-5" disabled={!hasApiKey('anthropic')}>Claude Haiku 4.5 (Fast)</option>
-                    <option value="anthropic:claude-sonnet-4-5" disabled={!hasApiKey('anthropic')}>Claude Sonnet 4.5</option>
-                    <option value="anthropic:claude-opus-4-5" disabled={!hasApiKey('anthropic')}>Claude Opus 4.5 (Latest)</option>
-                  </optgroup>
-                  <optgroup label={`Google${!hasApiKey('gemini') ? ' (No API Key)' : ''}`}>
-                    <option value="gemini:gemini-2.5-flash" disabled={!hasApiKey('gemini')}>Gemini 2.5 Flash (Fast)</option>
-                    <option value="gemini:gemini-3-flash-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Flash</option>
-                    <option value="gemini:gemini-3-pro-preview" disabled={!hasApiKey('gemini')}>Gemini 3 Pro (Latest)</option>
-                  </optgroup>
+                  {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
+                    <optgroup key={provider} label={`${providerNames[provider]}${!hasApiKey(provider) ? ' (No API Key)' : ''}`}>
+                      {models.map((model) => (
+                        <option key={model.id} value={model.id} disabled={!hasApiKey(provider)}>
+                          {model.name}{model.description ? ` (${model.description})` : ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
                 {errors.model && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
               </div>
