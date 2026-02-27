@@ -1,5 +1,7 @@
 # Quorum Freemium Feature — Handoff Notes
 
+**Last updated:** 2026-02-27
+
 ## What This Feature Is
 Adds a freemium payment system to Quorum:
 - **Free tier**: 20 uses/month, only 3 cheapest models (one per provider)
@@ -10,162 +12,83 @@ Adds a freemium payment system to Quorum:
 
 ---
 
-## Current State: What Has Been Implemented
+## Current State: Everything Is Working Except Stripe Verification
 
-### Backend — fully coded, needs env vars + Supabase
-| File | Status | Notes |
-|------|--------|-------|
-| `backend/auth/__init__.py` | Done | Empty package init |
-| `backend/auth/db.py` | Done | Supabase client + user/usage DB ops |
-| `backend/auth/jwt_utils.py` | Done | HS256 JWT issue/verify (30-day expiry) |
-| `backend/auth/google.py` | Done | Verifies Google access tokens via tokeninfo API |
-| `backend/auth/middleware.py` | Done | `@require_auth` decorator, free-tier enforcement |
-| `backend/auth/routes.py` | Done | `POST /auth/google`, `GET /auth/me` |
-| `backend/billing/__init__.py` | Done | Empty package init |
-| `backend/billing/stripe_client.py` | Done | Stripe Checkout sessions + webhook parsing |
-| `backend/billing/routes.py` | Done | `POST /billing/create-checkout`, `POST /billing/webhook` |
-| `backend/app.py` | Done | Blueprints registered, `/ask` has `@require_auth` + usage increment |
-| `backend/schemas/models.py` | Done | `api_key`/`api_keys` now optional (backend uses env var keys) |
-| `backend/orchestration/orchestrator.py` | Done | Reads keys from `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` env vars |
-| `backend/requirements.txt` | Done | Added `PyJWT==2.8.0`, `stripe==9.12.0`, `supabase==2.4.2` |
+### Completed & Tested ✅
+- Supabase project created, schema deployed
+- Google OAuth working (Web application client type, `chromiumapp.org` redirect URI)
+- Sign in with Google flow works end-to-end
+- JWT issued and stored in `chrome.storage.local`
+- Tier synced from `/auth/me` on every popup mount (no sign-out needed after upgrade)
+- Free tier model gating working (403 → upgrade prompt)
+- Free tier usage limit working (429 → upgrade prompt)
+- Stale Chrome storage issue resolved (Reset button clears mixed model configs)
+- Sidebar fills full width responsively
+- Popup loading spinner centered correctly
+- Model select dropdown has custom arrow (appearance-none)
+- Automatic tier polling after Stripe checkout (sidebar stays open → polls every 3s; popup reopens → checks on mount)
+- CLAUDE.md, README.md, PRD.md all updated
 
-### Extension — fully coded, needs env vars + Google setup
-| File | Status | Notes |
-|------|--------|-------|
-| `extension/manifest.json` | Done | Added `identity` permission + `oauth2` block — **client_id is `__GOOGLE_CLIENT_ID__` placeholder** |
-| `extension/src/utils/auth.js` | Done | Google OAuth flow, JWT storage, silent refresh |
-| `extension/src/utils/storage.js` | Done | Added `tier` field to models, `FREE_TIER_MODELS` set, removed all API key / backend URL settings |
-| `extension/src/utils/api.js` | Done | Auth header on `askQuestion`, new `getUserInfo()`, `createCheckoutSession()` |
-| `extension/src/components/LoginScreen.jsx` | Done | "Sign in with Google" screen with free/pro tier comparison |
-| `extension/src/components/UsageDisplay.jsx` | Done | Usage progress bar (only shown to free users) |
-| `extension/src/App.jsx` | Done | Auth state management, login gate, 401/403/429 error handling |
-| `extension/src/components/Header.jsx` | Done | User avatar menu, tier badge, upgrade button, sign out |
-| `extension/src/components/SettingsPanel.jsx` | Done | Developer Settings removed, `Pro` badge on paid models, tier gating |
-| `extension/src/components/ErrorMessage.jsx` | Done | Added `onUpgrade` CTA button prop |
+### Still Needs Testing ⚠️
+- **Stripe end-to-end**: Checkout opens, test card payment, webhook fires, tier upgrades automatically
+  - Stripe CLI listener must be running: `stripe listen --forward-to localhost:5000/billing/webhook`
+  - Test card: `4242 4242 4242 4242`, any future expiry, any CVC
+  - After payment, extension should show Pro within ~3 seconds (sidebar) or on next popup open
+  - Check `stripe listen` terminal for `checkout.session.completed` event
+  - Check Supabase `users` table for `tier = 'paid'` and `stripe_customer_id` populated
 
 ---
 
-## What Still Needs To Be Done (Manual Setup)
+## Setup — Already Done (Don't Redo)
 
-### 1. Supabase Project
+### External Services Configured
+- ✅ Supabase: project created, schema deployed, credentials in `backend/.env`
+- ✅ Google OAuth: Web application client created, `chromiumapp.org` redirect URI added, client ID in `extension/.env` and `extension/manifest.json`
+- ✅ Stripe: product + price created, secret key added to `backend/.env`, `stripe listen` used for local webhook
 
-1. Create a Supabase project at https://supabase.com
-2. Go to **SQL Editor** and run the full schema below:
+### Environment Files
+Both env files exist and are populated:
+- `backend/.env` — Supabase, JWT, Google, Stripe, AI provider keys
+- `extension/.env` — `VITE_HOSTED_BACKEND_URL`, `VITE_GOOGLE_CLIENT_ID`
 
-```sql
-CREATE TABLE public.users (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  google_id              TEXT NOT NULL UNIQUE,
-  email                  TEXT NOT NULL UNIQUE,
-  tier                   TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'paid')),
-  stripe_customer_id     TEXT,
-  stripe_subscription_id TEXT,
-  subscription_status    TEXT,
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+### Key env var name (gotcha)
+The code in `backend/auth/db.py` reads `SUPABASE_SECRET_KEY` (not `SUPABASE_SERVICE_KEY`). Make sure `backend/.env` uses `SUPABASE_SECRET_KEY`.
 
-CREATE TABLE public.usage (
-  id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id  UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  period   TEXT NOT NULL,
-  count    INTEGER NOT NULL DEFAULT 0,
-  UNIQUE(user_id, period)
-);
+---
 
-CREATE INDEX idx_usage_user_period ON public.usage(user_id, period);
-CREATE INDEX idx_users_google_id   ON public.users(google_id);
-CREATE INDEX idx_users_stripe      ON public.users(stripe_customer_id);
-
-CREATE OR REPLACE FUNCTION public.increment_usage(p_user_id UUID, p_period TEXT)
-RETURNS INTEGER AS $$
-DECLARE new_count INTEGER;
-BEGIN
-  INSERT INTO public.usage(user_id, period, count) VALUES (p_user_id, p_period, 1)
-  ON CONFLICT (user_id, period) DO UPDATE SET count = usage.count + 1
-  RETURNING count INTO new_count;
-  RETURN new_count;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.usage ENABLE ROW LEVEL SECURITY;
-```
-
-3. Go to **Project Settings → API** and copy:
-   - `Project URL` → `SUPABASE_URL`
-   - `service_role` key (under "Project API keys") → `SUPABASE_SERVICE_KEY` (NOT the anon key)
-
-### 2. Google Cloud Console (OAuth)
-
-1. Go to https://console.cloud.google.com → APIs & Services → Credentials
-2. Click **Create Credentials → OAuth 2.0 Client ID**
-3. Application type: **Chrome App**
-4. Application ID: paste your extension's Chrome ID (from `chrome://extensions` after loading unpacked)
-5. Copy the generated **Client ID**
-6. In `extension/manifest.json`, replace `__GOOGLE_CLIENT_ID__` with the real client ID
-7. Create `extension/.env`:
-   ```
-   VITE_GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
-   VITE_HOSTED_BACKEND_URL=http://localhost:5000
-   ```
-
-> **Note on extension ID stability**: For development, the extension ID changes each time you load it unpacked unless you set a `"key"` in the manifest. To get a stable ID: go to `chrome://extensions`, click "Pack extension", use the generated `.pem` key to derive the key field. Or just update the Google Cloud Console each time during early development.
-
-### 3. Stripe Setup
-
-1. Create a Stripe account or use existing
-2. Go to **Products → Add product** → create a recurring price: $10/month
-3. Copy the **Price ID** (starts with `price_`)
-4. For webhooks:
-   - **Local dev**: Use [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --forward-to localhost:5000/billing/webhook`
-   - **Production**: Add a webhook endpoint in Stripe Dashboard pointing to `https://your-domain.com/billing/webhook`
-   - Events to send: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
-5. Copy the **Webhook signing secret** (starts with `whsec_`)
-
-### 4. Backend `.env` File
-
-Create `backend/.env`:
-```bash
-# Supabase
-SUPABASE_URL=https://<ref>.supabase.co
-SUPABASE_SECRET_KEY=<service_role_key>
-
-# JWT
-JWT_SECRET=<run: python -c "import secrets; print(secrets.token_hex(32))">
-JWT_EXPIRY_DAYS=30
-
-# Google OAuth (for verifying tokens on the backend)
-GOOGLE_CLIENT_ID=<same-client-id>.apps.googleusercontent.com
-
-# Stripe
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ID=price_...
-
-# Quorum's hosted API keys (used by the orchestrator)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=AIza...
-```
-
-### 5. Install New Python Dependencies
+## How To Run
 
 ```bash
+# Terminal 1 — Backend
 cd backend
-source venv/bin/activate   # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
+source .venv/Scripts/activate
+python app.py
+
+# Terminal 2 — Stripe webhook listener
+stripe listen --forward-to localhost:5000/billing/webhook
+
+# Extension
+cd extension && npm run build
+# Load unpacked from extension/dist at chrome://extensions
 ```
 
-### 6. Build and Test the Extension
+---
 
-```bash
-cd extension
-npm install
-npm run dev    # or npm run build
-```
+## Known Issues / Watch Out For
 
-Load unpacked at `chrome://extensions` → select `extension/dist`
+1. **Stripe `success_url`** is hardcoded to `https://quorum.app/success` in `backend/billing/stripe_client.py`. Update before going live.
+
+2. **Webhook events** needed: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`. The Stripe CLI listener forwards all events by default.
+
+3. **JWT expiry and silent refresh**: `auth.js` attempts a non-interactive `launchWebAuthFlow` when the JWT expires. If it fails, the user is signed out and sees the LoginScreen.
+
+4. **Extension ID for OAuth**: The registered `chromiumapp.org` redirect URI must match the actual loaded extension ID. Do not remove and re-add the extension — use the refresh button. If you need to reinstall, update the redirect URI in Google Cloud Console.
+
+5. **`/validate-key` endpoint** is dead code in `app.py` — harmless, remove when convenient.
+
+6. **`getProviderFromModel` and `getHostedApiKey`** are still exported from `storage.js` but unused. Remove when cleaning up.
+
+7. **Supabase `maybe_single()` behaviour**: In supabase-py >= 2.10, `maybe_single().execute()` returns `None` (not a result object with `data=None`) when no row is found. `db.py` already handles this with `if result is None or result.data is None`.
 
 ---
 
@@ -195,9 +118,9 @@ Extension                          Backend                      External
 ```
 
 ### Tier Gating
-- Free-tier models defined in **two places** (kept in sync):
+- Free-tier models defined in **two places** (must be kept in sync):
   - `backend/auth/middleware.py`: `FREE_TIER_MODELS` set (enforced server-side)
-  - `extension/src/utils/storage.js`: `FREE_TIER_MODELS` set + `tier: 'free'` on model objects (used for UI gating)
+  - `extension/src/utils/storage.js`: `FREE_TIER_MODELS` set + `tier: 'free'` on model objects (UI gating)
 - Monthly limit: `FREE_TIER_MONTHLY_LIMIT = 20` in `backend/auth/middleware.py`
 
 ### Stripe → User Tier Update
@@ -206,64 +129,12 @@ The Stripe webhook (`POST /billing/webhook`) handles:
 - `customer.subscription.created/updated` (status: active/trialing) → sets `tier = 'paid'`
 - `customer.subscription.deleted` → sets `tier = 'free'`
 
-The extension picks up tier changes on the next request (backend loads fresh user from DB on every `/ask`).
+### Automatic Tier Sync (Extension)
+Two mechanisms ensure tier updates without sign-out:
+1. **On mount** (`App.jsx`): calls `/auth/me` and updates tier in state if it changed (handles popup reopen)
+2. **After upgrade click** (`handleUpgrade`): polls `/auth/me` every 3s for up to 10 minutes (handles sidebar staying open)
 
-### Stripe Checkout `success_url`
-Currently hardcoded to `https://quorum.app/success` in `backend/billing/stripe_client.py`. Update this to your actual domain before going live.
-
----
-
-## Potential Issues / Watch Out For
-
-1. **`/validate-key` endpoint** is still in `app.py` but no longer has `@require_auth` and is no longer called from the UI. It's harmless dead code — remove it when convenient.
-
-2. **`getProviderFromModel` and `getHostedApiKey`** are still exported from `storage.js` but no longer used in the extension. Can be removed when cleaning up.
-
-3. **JWT expiry and silent refresh**: `auth.js` attempts a non-interactive `launchWebAuthFlow` when the JWT expires. This works when the user is already signed into Chrome with their Google account. If it fails, the user is signed out and sees the LoginScreen.
-
-4. **Extension ID for OAuth**: The `oauth2.client_id` in `manifest.json` must match the Chrome App OAuth client registered in Google Cloud Console with the exact extension ID. During development with an unpacked extension, the ID may differ from production (Chrome Web Store). You may need two OAuth clients (one for dev, one for prod).
-
-5. **httpx version pin**: `requirements.txt` pins `httpx>=0.27.0,<0.28.0` for compatibility with older dependencies. `supabase==2.4.2` may have its own httpx requirements — if there are conflicts, try upgrading the supabase version or relaxing the pin.
-
-6. **Stripe webhook must be publicly accessible**: For local testing, run `stripe listen --forward-to localhost:5000/billing/webhook` with the Stripe CLI. The CLI prints a webhook signing secret to use in `.env`.
-
----
-
-## File Structure of New/Modified Files
-
-```
-backend/
-├── auth/
-│   ├── __init__.py
-│   ├── db.py              ← Supabase client + user/usage operations
-│   ├── google.py          ← Verifies Google OAuth tokens
-│   ├── jwt_utils.py       ← Issues/verifies app JWTs
-│   ├── middleware.py      ← @require_auth decorator + FREE_TIER constants
-│   └── routes.py          ← /auth/google + /auth/me
-├── billing/
-│   ├── __init__.py
-│   ├── stripe_client.py   ← Stripe Checkout session + webhook parsing
-│   └── routes.py          ← /billing/create-checkout + /billing/webhook
-├── orchestration/
-│   └── orchestrator.py    ← Modified: reads API keys from env vars
-├── schemas/
-│   └── models.py          ← Modified: api_key/api_keys optional
-├── app.py                 ← Modified: blueprints, @require_auth, usage increment
-└── requirements.txt       ← Modified: added PyJWT, stripe, supabase
-
-extension/
-├── manifest.json          ← Modified: identity permission, oauth2 block (replace __GOOGLE_CLIENT_ID__)
-├── .env                   ← Create: VITE_GOOGLE_CLIENT_ID, VITE_HOSTED_BACKEND_URL
-└── src/
-    ├── App.jsx            ← Modified: auth state, login gate, error handling
-    ├── utils/
-    │   ├── auth.js        ← New: Google OAuth + JWT storage + silent refresh
-    │   ├── storage.js     ← Modified: tier fields, FREE_TIER_MODELS, no API key settings
-    │   └── api.js         ← Modified: auth header, getUserInfo, createCheckoutSession
-    └── components/
-        ├── LoginScreen.jsx    ← New: Sign in with Google screen
-        ├── UsageDisplay.jsx   ← New: usage progress bar for free users
-        ├── Header.jsx         ← Modified: user menu, tier badge, upgrade button
-        ├── SettingsPanel.jsx  ← Modified: removed Developer Settings, Pro model gating
-        └── ErrorMessage.jsx   ← Modified: onUpgrade CTA prop
-```
+### To Reset a Test User
+In Supabase Table Editor → `users`:
+- Set `tier` back to `free`
+- Clear `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`
