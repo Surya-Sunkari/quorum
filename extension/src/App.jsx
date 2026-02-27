@@ -42,23 +42,28 @@ function App() {
       if (session.image) setImage(session.image);
     });
 
-    // Check for existing auth (refresh if token is expired)
-    refreshAuthIfNeeded().then((stored) => {
+    // Check for existing auth (refresh if token is expired), then sync tier from server
+    refreshAuthIfNeeded().then(async (stored) => {
+      if (stored?.token) {
+        try {
+          const info = await getUserInfo(HOSTED_CONFIG.backend_url, stored.token);
+          if (info.tier !== stored.user?.tier) {
+            stored = { ...stored, user: { ...stored.user, tier: info.tier } };
+          }
+          setUsageInfo(info.usage);
+        } catch {
+          // non-fatal — use cached tier
+        }
+      }
       setAuth(stored);
       setAuthLoading(false);
     });
   }, []);
 
-  // Fetch usage info whenever auth changes
+  // Clear usage info on sign out
   useEffect(() => {
-    if (auth?.token) {
-      getUserInfo(backendUrl, auth.token)
-        .then((info) => setUsageInfo(info.usage))
-        .catch(() => {}); // non-fatal
-    } else {
-      setUsageInfo(null);
-    }
-  }, [auth, backendUrl]);
+    if (!auth) setUsageInfo(null);
+  }, [auth]);
 
   // Save session state when question or image changes
   useEffect(() => {
@@ -85,6 +90,23 @@ function App() {
       } else {
         window.open(checkout_url, '_blank');
       }
+
+      // Poll /auth/me until tier flips to paid, then update state automatically
+      const pollInterval = setInterval(async () => {
+        try {
+          const info = await getUserInfo(backendUrl, auth.token);
+          if (info.tier === 'paid') {
+            clearInterval(pollInterval);
+            setAuth((prev) => ({ ...prev, user: { ...prev.user, tier: 'paid' } }));
+            setUsageInfo(info.usage);
+          }
+        } catch {
+          // ignore transient errors during polling
+        }
+      }, 3000);
+
+      // Stop polling after 10 minutes regardless
+      setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
     } catch (err) {
       setError('Could not open upgrade page. Please try again.');
     }
