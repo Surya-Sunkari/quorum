@@ -21,15 +21,18 @@
 /* Base styles for extension popup */
 html, body, #root {
   width: 400px;
+  height: 600px;
   min-height: 500px;
   max-height: 600px;
   margin: 0;
   padding: 0;
 }
 
-/* Sidebar mode - full height */
+/* Sidebar mode - full height and full width */
 @media (min-height: 700px) {
   html, body, #root {
+    width: 100%;
+    max-width: 100%;
     max-height: none;
     height: 100vh;
   }

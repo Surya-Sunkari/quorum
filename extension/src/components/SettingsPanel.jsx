@@ -126,21 +126,26 @@ function SettingsPanel({ settings, onSave, onCancel, userTier }) {
             <>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Model</label>
-                <select
-                  value={form.model}
-                  onChange={(e) => updateField('model', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
-                >
-                  {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
-                    <optgroup key={provider} label={providerNames[provider]}>
-                      {models.map((model) => (
-                        <option key={model.id} value={model.id} disabled={!isModelAvailable(model.id)}>
-                          {model.name} ({model.description}){!isModelAvailable(model.id) ? ' — Pro' : ''}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={form.model}
+                    onChange={(e) => updateField('model', e.target.value)}
+                    className="w-full appearance-none pl-3 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:border-quorum-400 focus:ring-2 focus:ring-quorum-100 bg-white"
+                  >
+                    {Object.entries(AVAILABLE_MODELS).map(([provider, models]) => (
+                      <optgroup key={provider} label={providerNames[provider]}>
+                        {models.map((model) => (
+                          <option key={model.id} value={model.id} disabled={!isModelAvailable(model.id)}>
+                            {model.name} ({model.description}){!isModelAvailable(model.id) ? ' — Pro' : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
                 {errors.model && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
               </div>
 
