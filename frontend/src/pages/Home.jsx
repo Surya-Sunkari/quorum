@@ -13,8 +13,8 @@ const features = [
     body: 'OpenAI, Anthropic, and Gemini all work together. Run one model or combine several in the same session.',
   },
   {
-    title: 'Drop in a screenshot',
-    body: 'Copy a screenshot and paste it straight into the extension. All three providers support image input.',
+    title: 'Text and images',
+    body: 'Paste a screenshot or upload an image alongside your question. Vision support across all providers.',
   },
 ];
 
@@ -28,7 +28,7 @@ function Home() {
           <span className="text-quorum-500">Hear from many.</span>
         </h1>
         <p className="mt-5 text-lg text-gray-500 max-w-md">
-          Send your question to multiple AI models at once. Get back the answer they all agree on.
+          Quorum runs your question through multiple AI agents and surfaces the answer they agree on.
         </p>
         <div className="mt-10 flex items-center gap-3 flex-wrap justify-center">
           <a
@@ -70,9 +70,9 @@ function Home() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { step: '01', heading: 'Type your question', detail: 'Plain text works fine. You can also paste a screenshot if the question lives in an image.' },
-            { step: '02', heading: 'Agents answer in parallel', detail: 'Multiple models read the same prompt and respond on their own, without seeing each other.' },
-            { step: '03', heading: 'You get the consensus', detail: 'An arbiter checks where the answers overlap and returns the one with the most agreement.' },
+            { step: '01', heading: 'Ask anything', detail: 'Type your question or paste a screenshot directly into the extension.' },
+            { step: '02', heading: 'Agents deliberate', detail: 'N independent agents answer in parallel across your chosen models.' },
+            { step: '03', heading: 'Consensus surfaces', detail: 'An arbiter evaluates agreement and returns the answer most agents converged on.' },
           ].map((item) => (
             <div key={item.step} className="flex gap-4">
               <span className="text-2xl font-bold text-quorum-200 tabular-nums leading-none mt-0.5">{item.step}</span>
