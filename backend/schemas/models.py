@@ -31,7 +31,7 @@ class ApiKeys(BaseModel):
 
 
 class AskRequest(BaseModel):
-    question: str = Field(default="", max_length=10000)
+    question: str = Field(default="", max_length=2000)
     image: Optional[str] = Field(default=None, description="Base64 encoded image data URL")
     n_agents: int = Field(default=3, ge=1, le=10)
     agreement_ratio: float = Field(default=0.67, ge=0.0, le=1.0)

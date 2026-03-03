@@ -12,7 +12,31 @@ FREE_TIER_MODELS = {
     "gemini:gemini-2.5-flash",
 }
 
+STANDARD_TIER_MODELS = FREE_TIER_MODELS | {
+    "openai:gpt-4.1",
+    "anthropic:claude-sonnet-4-6",
+    "gemini:gemini-3-flash-preview",
+}
+
+# Pro tier has no model restriction — all models are allowed.
+
 FREE_TIER_MONTHLY_LIMIT = 20
+STANDARD_TIER_MONTHLY_LIMIT = 200
+PRO_TIER_MONTHLY_LIMIT = 500
+
+
+def get_tier_limits(tier: str) -> tuple[set | None, int | None]:
+    """
+    Return (allowed_models_set, monthly_limit) for a tier.
+    allowed_models_set=None means all models are allowed.
+    monthly_limit=None means no limit (shouldn't occur with current tiers).
+    """
+    if tier == "free":
+        return FREE_TIER_MODELS, FREE_TIER_MONTHLY_LIMIT
+    if tier == "standard":
+        return STANDARD_TIER_MODELS, STANDARD_TIER_MONTHLY_LIMIT
+    # pro (and any unrecognised paid tier for safety)
+    return None, PRO_TIER_MONTHLY_LIMIT
 
 
 def current_period() -> str:
@@ -79,26 +103,33 @@ def require_auth(f):
 
         g.user = user
         tier = user["tier"]
+        allowed_models, monthly_limit = get_tier_limits(tier)
 
-        if tier == "free":
+        # Check model access
+        if allowed_models is not None:
             data = request.get_json(silent=True) or {}
             requested_models = _extract_models(data)
-            disallowed = requested_models - FREE_TIER_MODELS
+            disallowed = requested_models - allowed_models
             if disallowed:
+                upgrade_to = "Standard or Pro" if tier == "free" else "Pro"
                 return jsonify({
-                    "error": "One or more models require a paid subscription. Upgrade to access all models.",
+                    "error": f"One or more models require a {upgrade_to} subscription.",
                     "code": "UPGRADE_REQUIRED",
                     "disallowed_models": list(disallowed),
+                    "current_tier": tier,
                 }), 403
 
+        # Check monthly usage limit
+        if monthly_limit is not None:
             period = current_period()
             usage = get_monthly_usage(user["id"], period)
-            if usage >= FREE_TIER_MONTHLY_LIMIT:
+            if usage >= monthly_limit:
                 return jsonify({
-                    "error": f"You've reached the free tier limit of {FREE_TIER_MONTHLY_LIMIT} uses this month. Upgrade for unlimited access.",
+                    "error": f"You've reached your {monthly_limit} uses/month limit. Upgrade for a higher limit.",
                     "code": "USAGE_LIMIT_REACHED",
                     "usage": usage,
-                    "limit": FREE_TIER_MONTHLY_LIMIT,
+                    "limit": monthly_limit,
+                    "current_tier": tier,
                 }), 429
 
         return f(*args, **kwargs)

@@ -55,15 +55,17 @@ export async function getUserInfo(backendUrl, authToken) {
 }
 
 /**
- * Create a Stripe Checkout session for upgrading to paid tier.
+ * Create a Stripe Checkout session for upgrading to Standard or Pro.
  * @param {string} backendUrl - Backend URL
  * @param {string} authToken - JWT auth token
+ * @param {'standard'|'pro'} plan - Plan to subscribe to
  * @returns {Promise<{checkout_url: string}>}
  */
-export async function createCheckoutSession(backendUrl, authToken) {
+export async function createCheckoutSession(backendUrl, authToken, plan = 'standard') {
   const response = await fetch(`${backendUrl}/billing/create-checkout`, {
     method: 'POST',
     headers: authHeaders(authToken),
+    body: JSON.stringify({ plan }),
   });
 
   if (!response.ok) {

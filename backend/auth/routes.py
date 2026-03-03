@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, g
 from .google import verify_google_token
 from .db import upsert_user, get_monthly_usage
 from .jwt_utils import issue_jwt
-from .middleware import require_auth, FREE_TIER_MONTHLY_LIMIT, current_period
+from .middleware import require_auth, get_tier_limits, current_period
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -61,7 +61,7 @@ def me():
     user = g.user
     period = current_period()
     count = get_monthly_usage(user["id"], period)
-    limit = FREE_TIER_MONTHLY_LIMIT if user["tier"] == "free" else None
+    _, limit = get_tier_limits(user["tier"])
 
     return jsonify({
         "email": user["email"],

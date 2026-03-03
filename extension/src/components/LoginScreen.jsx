@@ -82,10 +82,17 @@ function LoginScreen({ onSuccess }) {
         </div>
         <div className="bg-gradient-to-r from-quorum-50 to-quorum-100 rounded-xl p-3 flex justify-between items-center">
           <div>
-            <p className="text-xs font-medium text-quorum-700">Pro · $10/mo</p>
-            <p className="text-xs text-quorum-500">Unlimited · All models</p>
+            <p className="text-xs font-medium text-quorum-700">Standard · $5/mo</p>
+            <p className="text-xs text-quorum-500">200 uses/month · Mid-tier models</p>
           </div>
           <span className="text-xs text-quorum-600 bg-quorum-200 px-2 py-0.5 rounded-full">Upgrade</span>
+        </div>
+        <div className="bg-gradient-to-r from-quorum-100 to-quorum-200 rounded-xl p-3 flex justify-between items-center">
+          <div>
+            <p className="text-xs font-medium text-quorum-800">Pro · $15/mo</p>
+            <p className="text-xs text-quorum-600">500 uses/month · All models</p>
+          </div>
+          <span className="text-xs text-quorum-700 bg-quorum-300 px-2 py-0.5 rounded-full">Upgrade</span>
         </div>
       </div>
     </div>

@@ -16,12 +16,12 @@ function Header({ onSettingsClick, onSidebarClick, auth, onSignOut, onUpgrade })
       </div>
 
       <div className="flex items-center gap-1">
-        {/* Upgrade button for free users */}
-        {tier === 'free' && (
+        {/* Upgrade button for free and standard users */}
+        {(tier === 'free' || tier === 'standard') && (
           <button
             onClick={onUpgrade}
             className="px-2.5 py-1 text-xs font-medium text-quorum-600 bg-quorum-50 hover:bg-quorum-100 rounded-lg transition-colors"
-            title="Upgrade to Pro"
+            title={tier === 'standard' ? 'Upgrade to Pro' : 'Upgrade'}
           >
             Upgrade
           </button>
@@ -75,16 +75,16 @@ function Header({ onSettingsClick, onSidebarClick, auth, onSignOut, onUpgrade })
                 <div className="absolute right-0 top-10 z-20 w-48 bg-white rounded-xl shadow-bubbly border border-gray-100 py-1 text-sm">
                   <div className="px-3 py-2 border-b border-gray-100">
                     <p className="text-xs text-gray-500 truncate">{email}</p>
-                    <span className={`text-xs font-medium ${tier === 'paid' ? 'text-quorum-600' : 'text-gray-500'}`}>
-                      {tier === 'paid' ? 'Pro' : 'Free tier'}
+                    <span className={`text-xs font-medium ${tier === 'pro' ? 'text-quorum-600' : tier === 'standard' ? 'text-quorum-500' : 'text-gray-500'}`}>
+                      {tier === 'pro' ? 'Pro' : tier === 'standard' ? 'Standard' : 'Free tier'}
                     </span>
                   </div>
-                  {tier === 'free' && (
+                  {(tier === 'free' || tier === 'standard') && (
                     <button
                       onClick={() => { setMenuOpen(false); onUpgrade(); }}
                       className="w-full text-left px-3 py-2 text-quorum-600 hover:bg-quorum-50 transition-colors"
                     >
-                      Upgrade to Pro
+                      {tier === 'standard' ? 'Upgrade to Pro' : 'Upgrade'}
                     </button>
                   )}
                   <button

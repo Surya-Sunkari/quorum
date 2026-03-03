@@ -73,7 +73,7 @@ class AnswerAgent:
             prompt=prompt,
             system_prompt=ANSWER_SYSTEM_PROMPT,
             temperature=0.3 + (self.agent_id * 0.02),  # Low temp for accuracy, slight variation
-            max_tokens=4000,  # Allow thorough reasoning
+            max_tokens=1500,
             image=image,
         )
 

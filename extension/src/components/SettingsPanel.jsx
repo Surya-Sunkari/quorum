@@ -5,15 +5,13 @@ import {
   DEFAULT_SETTINGS,
   AVAILABLE_MODELS,
   getTotalMixedAgents,
-  FREE_TIER_MODELS,
+  isModelAccessible,
 } from '../utils/storage';
 
 function SettingsPanel({ settings, onSave, onCancel, userTier }) {
   const [form, setForm] = useState({ ...settings });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
-
-  const isPaid = userTier === 'paid';
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -41,7 +39,16 @@ function SettingsPanel({ settings, onSave, onCancel, userTier }) {
     gemini: 'Google Gemini',
   };
 
-  const isModelAvailable = (modelId) => isPaid || FREE_TIER_MODELS.has(modelId);
+  const isModelAvailable = (modelId) => {
+    const model = Object.values(AVAILABLE_MODELS).flat().find((m) => m.id === modelId);
+    return model ? isModelAccessible(model.tier, userTier) : false;
+  };
+
+  const modelUpgradeLabel = (modelTier) => {
+    if (modelTier === 'pro') return 'Pro';
+    if (modelTier === 'standard') return 'Standard';
+    return null;
+  };
 
   const validate = () => {
     const newErrors = {};
@@ -136,7 +143,7 @@ function SettingsPanel({ settings, onSave, onCancel, userTier }) {
                       <optgroup key={provider} label={providerNames[provider]}>
                         {models.map((model) => (
                           <option key={model.id} value={model.id} disabled={!isModelAvailable(model.id)}>
-                            {model.name} ({model.description}){!isModelAvailable(model.id) ? ' — Pro' : ''}
+                            {model.name} ({model.description}){!isModelAvailable(model.id) ? ` — ${modelUpgradeLabel(model.tier)}` : ''}
                           </option>
                         ))}
                       </optgroup>
@@ -209,7 +216,9 @@ function SettingsPanel({ settings, onSave, onCancel, userTier }) {
                             </span>
                             <span className="text-xs text-gray-400">({model.description})</span>
                             {!available && (
-                              <span className="text-xs text-quorum-500 bg-quorum-50 px-1.5 py-0.5 rounded">Pro</span>
+                              <span className="text-xs text-quorum-500 bg-quorum-50 px-1.5 py-0.5 rounded">
+                                {modelUpgradeLabel(model.tier)}
+                              </span>
                             )}
                           </div>
                         </div>

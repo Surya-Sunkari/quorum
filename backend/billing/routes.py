@@ -12,19 +12,26 @@ billing_bp = Blueprint("billing", __name__, url_prefix="/billing")
 @require_auth
 def create_checkout():
     """
-    Create a Stripe Checkout session for upgrading to the paid tier.
+    Create a Stripe Checkout session for upgrading to Standard or Pro.
+    Request body: { "plan": "standard" | "pro" }
     Returns { "checkout_url": "https://checkout.stripe.com/..." }
     """
     user = g.user
 
-    if user["tier"] == "paid":
-        return jsonify({"error": "Already on paid tier"}), 400
+    if user["tier"] in ("standard", "pro"):
+        return jsonify({"error": "Already on a paid tier"}), 400
+
+    body = request.get_json(silent=True) or {}
+    plan = body.get("plan", "standard")
+    if plan not in ("standard", "pro"):
+        plan = "standard"
 
     try:
         checkout_url = create_checkout_session(
             user_id=user["id"],
             email=user["email"],
             stripe_customer_id=user.get("stripe_customer_id"),
+            plan=plan,
         )
     except Exception as e:
         return jsonify({"error": f"Failed to create checkout session: {e}"}), 500
@@ -52,21 +59,27 @@ def stripe_webhook():
     data = event["data"]["object"]
 
     if event_type == "checkout.session.completed":
-        # Link the Stripe customer ID to our user, then immediately set tier=paid.
+        # Link the Stripe customer ID to our user, then set the correct tier.
         # subscription.created fires before this event, so the customer_id isn't
         # on the user row yet when that handler runs — we must set the tier here.
-        user_id = data.get("metadata", {}).get("user_id")
+        meta = data.get("metadata", {})
+        user_id = meta.get("user_id")
         customer_id = data.get("customer")
+        plan = meta.get("plan", "standard")
+        tier = "pro" if plan == "pro" else "standard"
         if user_id and customer_id:
             set_stripe_customer_id(user_id, customer_id)
-            update_user_tier(stripe_customer_id=customer_id, tier="paid")
+            update_user_tier(stripe_customer_id=customer_id, tier=tier)
 
     elif event_type in ("customer.subscription.created", "customer.subscription.updated"):
         customer_id = data.get("customer")
         status = data.get("status")
         subscription_id = data.get("id")
-        # Treat active and trialing as paid
-        tier = "paid" if status in ("active", "trialing") else "free"
+        plan = data.get("metadata", {}).get("plan", "standard")
+        if status in ("active", "trialing"):
+            tier = "pro" if plan == "pro" else "standard"
+        else:
+            tier = "free"
         if customer_id:
             update_user_tier(
                 stripe_customer_id=customer_id,

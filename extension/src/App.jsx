@@ -24,6 +24,7 @@ function App() {
   const [usageInfo, setUsageInfo] = useState(null); // { count, limit, period }
   const [authLoading, setAuthLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPlanPicker, setShowPlanPicker] = useState(false);
   const [question, setQuestion] = useState('');
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -36,6 +37,8 @@ function App() {
 
   // Load settings, session state, and auth on mount
   useEffect(() => {
+    let upgradePollInterval = null;
+
     getSettings().then(setSettings);
     getSessionState().then((session) => {
       if (session.question) setQuestion(session.question);
@@ -57,7 +60,43 @@ function App() {
       }
       setAuth(stored);
       setAuthLoading(false);
+
+      // If upgrade was started before popup closed, resume polling for tier change
+      const isPaid = stored?.user?.tier === 'standard' || stored?.user?.tier === 'pro';
+      if (stored?.token && !isPaid && typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.get('quorum_upgrade_pending', (result) => {
+          const pendingSince = result.quorum_upgrade_pending;
+          const remainingMs = pendingSince ? 10 * 60 * 1000 - (Date.now() - pendingSince) : 0;
+          if (remainingMs > 0) {
+            upgradePollInterval = setInterval(async () => {
+              try {
+                const freshInfo = await getUserInfo(HOSTED_CONFIG.backend_url, stored.token);
+                if (freshInfo.tier === 'standard' || freshInfo.tier === 'pro') {
+                  clearInterval(upgradePollInterval);
+                  upgradePollInterval = null;
+                  chrome.storage.local.remove('quorum_upgrade_pending');
+                  setAuth((prev) => ({ ...prev, user: { ...prev.user, tier: freshInfo.tier } }));
+                  setUsageInfo(freshInfo.usage);
+                }
+              } catch {
+                // ignore transient errors during polling
+              }
+            }, 3000);
+            setTimeout(() => {
+              if (upgradePollInterval) {
+                clearInterval(upgradePollInterval);
+                upgradePollInterval = null;
+              }
+              chrome.storage.local.remove('quorum_upgrade_pending');
+            }, remainingMs);
+          }
+        });
+      }
     });
+
+    return () => {
+      if (upgradePollInterval) clearInterval(upgradePollInterval);
+    };
   }, []);
 
   // Clear usage info on sign out
@@ -82,22 +121,36 @@ function App() {
     setUsageInfo(null);
   };
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = () => {
+    setShowPlanPicker(true);
+  };
+
+  const handleSelectPlan = async (plan) => {
+    setShowPlanPicker(false);
     try {
-      const { checkout_url } = await createCheckoutSession(backendUrl, auth.token);
+      const { checkout_url } = await createCheckoutSession(backendUrl, auth.token, plan);
+
+      // Persist flag so we resume polling if popup is reopened before webhook fires
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.set({ quorum_upgrade_pending: Date.now() });
+      }
+
       if (typeof chrome !== 'undefined' && chrome.tabs) {
         chrome.tabs.create({ url: checkout_url });
       } else {
         window.open(checkout_url, '_blank');
       }
 
-      // Poll /auth/me until tier flips to paid, then update state automatically
+      // Poll /auth/me while this session is still active (sidebar case)
       const pollInterval = setInterval(async () => {
         try {
           const info = await getUserInfo(backendUrl, auth.token);
-          if (info.tier === 'paid') {
+          if (info.tier === 'standard' || info.tier === 'pro') {
             clearInterval(pollInterval);
-            setAuth((prev) => ({ ...prev, user: { ...prev.user, tier: 'paid' } }));
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+              chrome.storage.local.remove('quorum_upgrade_pending');
+            }
+            setAuth((prev) => ({ ...prev, user: { ...prev.user, tier: info.tier } }));
             setUsageInfo(info.usage);
           }
         } catch {
@@ -198,9 +251,9 @@ function App() {
         return;
       }
 
-      // Handle upgrade-required (free tier model restriction)
+      // Handle upgrade-required (model tier restriction)
       if (err.status === 403 && err.details?.code === 'UPGRADE_REQUIRED') {
-        setError('This model requires a paid subscription.');
+        setError(err.message || 'This model requires a higher tier subscription.');
         setErrorDetails({ upgrade: true, ...err.details });
         return;
       }
@@ -256,8 +309,43 @@ function App() {
         onUpgrade={handleUpgrade}
       />
 
-      {auth.user?.tier === 'free' && usageInfo && (
-        <UsageDisplay count={usageInfo.count} limit={usageInfo.limit} />
+      {/* Plan picker overlay */}
+      {showPlanPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-bubbly-lg p-5 w-full max-w-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-800">Choose a plan</h2>
+              <button
+                onClick={() => setShowPlanPicker(false)}
+                className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {auth.user?.tier === 'free' && (
+              <button
+                onClick={() => handleSelectPlan('standard')}
+                className="w-full text-left p-3 rounded-xl border border-quorum-200 hover:bg-quorum-50 transition-colors"
+              >
+                <p className="text-sm font-medium text-quorum-700">Standard · $5/mo</p>
+                <p className="text-xs text-gray-500 mt-0.5">200 uses/month · Mid-tier models</p>
+              </button>
+            )}
+            <button
+              onClick={() => handleSelectPlan('pro')}
+              className="w-full text-left p-3 rounded-xl border border-quorum-300 bg-gradient-to-r from-quorum-50 to-quorum-100 hover:from-quorum-100 hover:to-quorum-200 transition-colors"
+            >
+              <p className="text-sm font-medium text-quorum-800">Pro · $15/mo</p>
+              <p className="text-xs text-gray-500 mt-0.5">500 uses/month · All models</p>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {usageInfo && (
+        <UsageDisplay count={usageInfo.count} limit={usageInfo.limit} tier={auth.user?.tier} />
       )}
 
       {showSettings ? (

@@ -18,29 +18,48 @@ export const FREE_TIER_MODELS = new Set([
 ]);
 
 /**
+ * Models available on the Standard tier (superset of Free).
+ */
+export const STANDARD_TIER_MODELS = new Set([
+  ...FREE_TIER_MODELS,
+  'openai:gpt-4.1',
+  'anthropic:claude-sonnet-4-6',
+  'gemini:gemini-3-flash-preview',
+]);
+
+/**
  * Available models organized by provider.
- * Each model has: id, name, description, tier ('free' | 'paid').
+ * tier: 'free' | 'standard' | 'pro'
  * To add, rename, or remove a model, edit this object only.
  */
 export const AVAILABLE_MODELS = {
   openai: [
     { id: 'openai:gpt-4.1-mini', name: 'GPT-4.1 Mini', description: 'Fast', tier: 'free' },
-    { id: 'openai:gpt-4.1', name: 'GPT-4.1', description: 'Balanced', tier: 'paid' },
-    { id: 'openai:gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast, capable', tier: 'paid' },
-    { id: 'openai:gpt-5.1', name: 'GPT-5.1', description: 'High capability', tier: 'paid' },
-    { id: 'openai:gpt-5.2', name: 'GPT-5.2', description: 'Latest', tier: 'paid' },
+    { id: 'openai:gpt-4.1', name: 'GPT-4.1', description: 'Balanced', tier: 'standard' },
+    { id: 'openai:gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast, capable', tier: 'pro' },
+    { id: 'openai:gpt-5.1', name: 'GPT-5.1', description: 'High capability', tier: 'pro' },
+    { id: 'openai:gpt-5.2', name: 'GPT-5.2', description: 'Latest', tier: 'pro' },
   ],
   anthropic: [
     { id: 'anthropic:claude-haiku-4-5', name: 'Claude Haiku 4.5', description: 'Fast', tier: 'free' },
-    { id: 'anthropic:claude-sonnet-4-6', name: 'Claude Sonnet 4.6', description: 'Balanced', tier: 'paid' },
-    { id: 'anthropic:claude-opus-4-6', name: 'Claude Opus 4.6', description: 'Most capable', tier: 'paid' },
+    { id: 'anthropic:claude-sonnet-4-6', name: 'Claude Sonnet 4.6', description: 'Balanced', tier: 'standard' },
+    { id: 'anthropic:claude-opus-4-6', name: 'Claude Opus 4.6', description: 'Most capable', tier: 'pro' },
   ],
   gemini: [
     { id: 'gemini:gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast', tier: 'free' },
-    { id: 'gemini:gemini-3-flash-preview', name: 'Gemini 3 Flash', description: 'Fast, capable', tier: 'paid' },
-    { id: 'gemini:gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Most capable', tier: 'paid' },
+    { id: 'gemini:gemini-3-flash-preview', name: 'Gemini 3 Flash', description: 'Fast, capable', tier: 'standard' },
+    { id: 'gemini:gemini-3-pro-preview', name: 'Gemini 3 Pro', description: 'Most capable', tier: 'pro' },
   ],
 };
+
+/**
+ * Return whether a model is accessible to a given user tier.
+ */
+export function isModelAccessible(modelTier, userTier) {
+  if (userTier === 'pro') return true;
+  if (userTier === 'standard') return modelTier !== 'pro';
+  return modelTier === 'free';
+}
 
 /**
  * Map of model IDs to friendly display names.

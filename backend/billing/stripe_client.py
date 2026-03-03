@@ -6,13 +6,23 @@ def _configure():
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 
 
-def create_checkout_session(user_id: str, email: str, stripe_customer_id: str | None) -> str:
+def create_checkout_session(
+    user_id: str,
+    email: str,
+    stripe_customer_id: str | None,
+    plan: str = "standard",
+) -> str:
     """
-    Create a Stripe Checkout session for the $10/month subscription.
+    Create a Stripe Checkout session for the chosen plan.
+    plan must be 'standard' or 'pro'.
     Returns the session URL to redirect the user to.
     """
     _configure()
-    price_id = os.environ["STRIPE_PRICE_ID"]
+    if plan == "pro":
+        price_id = os.environ["STRIPE_PRO_PRICE_ID"]
+    else:
+        plan = "standard"
+        price_id = os.environ["STRIPE_STANDARD_PRICE_ID"]
 
     params: dict = {
         "payment_method_types": ["card"],
@@ -20,9 +30,9 @@ def create_checkout_session(user_id: str, email: str, stripe_customer_id: str | 
         "line_items": [{"price": price_id, "quantity": 1}],
         "success_url": "https://quorum.app/success?session_id={CHECKOUT_SESSION_ID}",
         "cancel_url": "https://quorum.app/cancel",
-        "metadata": {"user_id": user_id},
+        "metadata": {"user_id": user_id, "plan": plan},
         "subscription_data": {
-            "metadata": {"user_id": user_id},
+            "metadata": {"user_id": user_id, "plan": plan},
         },
     }
 

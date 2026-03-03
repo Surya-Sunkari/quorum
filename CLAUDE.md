@@ -97,7 +97,7 @@ quorum/
 
 ## Project Overview
 
-Quorum is a Chrome extension that provides consensus-based answers from multiple AI agents. Users sign in with Google, ask a question (text or image), N independent agents answer in parallel, and an arbiter agent determines agreement. Free tier users get 20 uses/month with 3 basic models; Pro users ($10/mo) get unlimited access to all models.
+Quorum is a Chrome extension that provides consensus-based answers from multiple AI agents. Users sign in with Google, ask a question (text or image), N independent agents answer in parallel, and an arbiter agent determines agreement. Three tiers: Free (20/mo, 3 models), Standard ($5/mo, 200/mo, mid-tier models), Pro ($15/mo, 500/mo, all models).
 
 ## Architecture
 
@@ -124,7 +124,7 @@ Quorum is a Chrome extension that provides consensus-based answers from multiple
 ## Key Features
 
 - **Auth:** Google Sign-In, JWT sessions (30-day), silent refresh
-- **Freemium:** Free tier (20 uses/month, 3 models), Pro tier ($10/mo, unlimited)
+- **Freemium:** Free (20/mo, 3 models), Standard ($5/mo, 200/mo, mid-tier), Pro ($15/mo, 500/mo, all models)
 - **Multi-agent consensus:** N agents answer independently, arbiter clusters answers
 - **Multi-provider support:** OpenAI, Anthropic (Claude), and Google Gemini models
 - **Mixed-model mode:** Run agents from different models simultaneously in the same quorum
@@ -173,29 +173,29 @@ Authorization: Bearer <jwt>
 
 ### Auth Errors
 - `401` — Missing/expired/invalid JWT
-- `403` + `code: UPGRADE_REQUIRED` — Model requires Pro tier
-- `429` + `code: USAGE_LIMIT_REACHED` — Free tier monthly limit hit
+- `403` + `code: UPGRADE_REQUIRED` — Model requires Standard or Pro tier
+- `429` + `code: USAGE_LIMIT_REACHED` — Monthly limit hit for current tier
 
 ## Available Models
 
-Models use the format `provider:model-name`. Free tier models marked with *.
+Models use the format `provider:model-name`. Tier access marked with *(free), **(standard), ***(pro).
 
 ### OpenAI
 - `openai:gpt-4.1-mini` * (default, fast)
-- `openai:gpt-4.1`
-- `openai:gpt-5-mini`
-- `openai:gpt-5.1`
-- `openai:gpt-5.2` (latest)
+- `openai:gpt-4.1` ** (balanced)
+- `openai:gpt-5-mini` *** (fast, capable)
+- `openai:gpt-5.1` *** (high capability)
+- `openai:gpt-5.2` *** (latest)
 
 ### Anthropic (Claude)
 - `anthropic:claude-haiku-4-5` * (fast)
-- `anthropic:claude-sonnet-4-6`
-- `anthropic:claude-opus-4-6` (most capable)
+- `anthropic:claude-sonnet-4-6` ** (balanced)
+- `anthropic:claude-opus-4-6` *** (most capable)
 
 ### Google Gemini
 - `gemini:gemini-2.5-flash` * (fast)
-- `gemini:gemini-3-flash-preview`
-- `gemini:gemini-3-pro-preview`
+- `gemini:gemini-3-flash-preview` ** (fast, capable)
+- `gemini:gemini-3-pro-preview` *** (most capable)
 
 ## Defaults
 
@@ -210,6 +210,8 @@ Models use the format `provider:model-name`. Free tier models marked with *.
 - N: 1-10
 - R: 0.0-1.0
 - max_rounds: 0-5
+- question: max 2000 characters
+- agent max_tokens: 1500 per response
 
 ## Backend Environment Variables (`backend/.env`)
 
@@ -228,7 +230,8 @@ GOOGLE_CLIENT_ID=<client-id>.apps.googleusercontent.com
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ID=price_...
+STRIPE_STANDARD_PRICE_ID=price_...   # $5/mo Standard plan
+STRIPE_PRO_PRICE_ID=price_...        # $15/mo Pro plan
 
 # AI Provider keys (backend-managed, not user-supplied)
 OPENAI_API_KEY=sk-...
