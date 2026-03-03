@@ -28,8 +28,8 @@ def create_checkout_session(
         "payment_method_types": ["card"],
         "mode": "subscription",
         "line_items": [{"price": price_id, "quantity": 1}],
-        "success_url": "https://quorum.app/success?session_id={CHECKOUT_SESSION_ID}",
-        "cancel_url": "https://quorum.app/cancel",
+        "success_url": os.environ.get("FRONTEND_URL", "https://quorum.app") + "/success?session_id={CHECKOUT_SESSION_ID}",
+        "cancel_url": os.environ.get("FRONTEND_URL", "https://quorum.app") + "/cancel",
         "metadata": {"user_id": user_id, "plan": plan},
         "subscription_data": {
             "metadata": {"user_id": user_id, "plan": plan},

@@ -6,6 +6,7 @@
 // Quorum hosted backend configuration
 export const HOSTED_CONFIG = {
   backend_url: import.meta.env.VITE_HOSTED_BACKEND_URL || 'http://localhost:5000',
+  frontend_url: import.meta.env.VITE_FRONTEND_URL || 'http://localhost:3000',
 };
 
 /**
