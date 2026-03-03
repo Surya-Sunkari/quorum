@@ -52,11 +52,14 @@ def stripe_webhook():
     data = event["data"]["object"]
 
     if event_type == "checkout.session.completed":
-        # Link the Stripe customer ID to our user
+        # Link the Stripe customer ID to our user, then immediately set tier=paid.
+        # subscription.created fires before this event, so the customer_id isn't
+        # on the user row yet when that handler runs — we must set the tier here.
         user_id = data.get("metadata", {}).get("user_id")
         customer_id = data.get("customer")
         if user_id and customer_id:
             set_stripe_customer_id(user_id, customer_id)
+            update_user_tier(stripe_customer_id=customer_id, tier="paid")
 
     elif event_type in ("customer.subscription.created", "customer.subscription.updated"):
         customer_id = data.get("customer")
