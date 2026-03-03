@@ -22,7 +22,7 @@ const plans = [
     period: '/mo',
     uses: '200 uses / month',
     models: 'Mid-tier models',
-    modelList: 'GPT-4.1 · Claude Sonnet · Gemini Flash',
+    modelList: 'GPT-4.1 · Claude Sonnet',
     cta: 'Get Standard',
     highlight: false,
   },

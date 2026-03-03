@@ -5,16 +5,16 @@ const EXTENSION_URL = import.meta.env.VITE_CHROME_EXTENSION_URL || '#';
 
 const features = [
   {
-    title: 'Consensus, not guesswork',
-    body: 'Multiple agents answer independently. An arbiter finds where they agree — giving you a reliable signal, not just one opinion.',
+    title: 'When they agree, you know',
+    body: 'Each agent answers on its own, without seeing the others. If most land on the same answer, that agreement is the signal.',
   },
   {
-    title: 'Every major provider',
-    body: 'OpenAI, Anthropic, and Gemini in the same quorum. Mix models or run a single fleet. You choose.',
+    title: 'Mix and match models',
+    body: 'OpenAI, Anthropic, and Gemini all work together. Run one model or combine several in the same session.',
   },
   {
-    title: 'Text and images',
-    body: 'Paste a screenshot or upload an image alongside your question. Vision support across all providers.',
+    title: 'Drop in a screenshot',
+    body: 'Copy a screenshot and paste it straight into the extension. All three providers support image input.',
   },
 ];
 
@@ -22,13 +22,13 @@ function Home() {
   return (
     <div className="flex flex-col">
       {/* Hero */}
-      <section className="flex flex-col items-center text-center px-6 pt-24 pb-20">
+      <section className="flex flex-col items-center text-center px-6 pt-20 pb-20">
         <h1 className="text-5xl font-bold tracking-tight text-gray-900 max-w-xl leading-tight">
           Ask once.<br />
           <span className="text-quorum-500">Hear from many.</span>
         </h1>
         <p className="mt-5 text-lg text-gray-500 max-w-md">
-          Quorum runs your question through multiple AI agents and surfaces the answer they agree on.
+          Send your question to multiple AI models at once. Get back the answer they all agree on.
         </p>
         <div className="mt-10 flex items-center gap-3 flex-wrap justify-center">
           <a
@@ -40,7 +40,7 @@ function Home() {
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
             </svg>
-            Add to Chrome — it's free
+            Add to Chrome, it's free
           </a>
           <Link
             to="/pricing"
@@ -70,9 +70,9 @@ function Home() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { step: '01', heading: 'Ask anything', detail: 'Type your question or paste a screenshot directly into the extension.' },
-            { step: '02', heading: 'Agents deliberate', detail: 'N independent agents answer in parallel across your chosen models.' },
-            { step: '03', heading: 'Consensus surfaces', detail: 'An arbiter evaluates agreement and returns the answer most agents converged on.' },
+            { step: '01', heading: 'Type your question', detail: 'Plain text works fine. You can also paste a screenshot if the question lives in an image.' },
+            { step: '02', heading: 'Agents answer in parallel', detail: 'Multiple models read the same prompt and respond on their own, without seeing each other.' },
+            { step: '03', heading: 'You get the consensus', detail: 'An arbiter checks where the answers overlap and returns the one with the most agreement.' },
           ].map((item) => (
             <div key={item.step} className="flex gap-4">
               <span className="text-2xl font-bold text-quorum-200 tabular-nums leading-none mt-0.5">{item.step}</span>
@@ -88,7 +88,7 @@ function Home() {
       {/* CTA strip */}
       <section className="bg-quorum-500 py-14 px-6 text-center">
         <p className="text-white font-semibold text-xl">Free to start. No card required.</p>
-        <p className="text-quorum-200 text-sm mt-2">20 uses a month on the free tier — upgrade when you need more.</p>
+        <p className="text-quorum-200 text-sm mt-2">20 uses a month on the free plan. Upgrade whenever you want more.</p>
         <a
           href={EXTENSION_URL}
           target="_blank"

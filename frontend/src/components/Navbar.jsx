@@ -8,9 +8,12 @@ function Navbar({ auth, onSignIn, onSignOut }) {
     <nav className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="text-lg font-bold tracking-tight select-none">
-          <span className="text-gray-800">Quo</span>
-          <span className="text-quorum-500">rum</span>
+        <Link to="/" className="flex items-center gap-2 select-none">
+          <img src="/quorum_logo_no_text.png" alt="Quorum" className="w-7 h-7" />
+          <span className="text-lg font-bold tracking-tight">
+            <span className="text-gray-800">Quo</span>
+            <span className="text-quorum-500">rum</span>
+          </span>
         </Link>
 
         {/* Nav links */}
