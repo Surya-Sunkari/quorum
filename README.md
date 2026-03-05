@@ -281,7 +281,62 @@ Returns `{"status": "ok"}` for health checks.
 | Mixed Models | Off | — | Enable mixed-model mode |
 | Debug Mode | Off | — | Show per-agent outputs |
 
-## Testing Checklist
+## Testing
+
+The project has comprehensive automated tests covering both backend and frontend.
+
+### Backend Tests (pytest)
+
+```bash
+cd backend
+uv pip install -r requirements-test.txt
+pytest -v --tb=short
+```
+
+For coverage:
+```bash
+pytest --cov=. --cov-report=term-missing
+```
+
+**179 tests** covering:
+- Pydantic schema validation
+- JWT issue/verify operations
+- Google OAuth token verification
+- Supabase DB operations
+- Auth middleware and tier enforcement
+- Auth and billing API routes
+- Provider factory and all providers (OpenAI, Anthropic, Gemini)
+- Answer agent and arbiter agent
+- Orchestrator multi-agent flow
+- Flask app endpoints
+
+All external services (Supabase, Stripe, OpenAI, Anthropic, Gemini, Google OAuth) are mocked.
+
+### Frontend Tests (Vitest)
+
+```bash
+cd extension
+npm install
+npx vitest run
+```
+
+For coverage:
+```bash
+npx vitest run --coverage
+```
+
+For watch mode:
+```bash
+npx vitest
+```
+
+**126 tests** covering:
+- **Utils:** storage (31 tests), api (13 tests), auth (10 tests)
+- **Components:** QuestionInput, AnswerCard, SettingsPanel, Header, MathText, LoginScreen, ErrorMessage, UsageDisplay, StatusBadge, LoadingState
+
+Chrome extension APIs are mocked in `extension/src/test-setup.js`.
+
+### Manual Testing Checklist
 
 - [ ] Backend starts without errors on `http://localhost:5000`
 - [ ] Extension loads in Chrome without errors

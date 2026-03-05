@@ -44,6 +44,12 @@ const copyExtensionFiles = () => ({
 
 export default defineConfig({
   plugins: [react(), copyExtensionFiles()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test-setup.js',
+    css: false,
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

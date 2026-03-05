@@ -34,6 +34,24 @@ npm run build  # Creates dist/ folder
 npm run dev    # Watch mode for development
 ```
 
+### Backend Tests
+```bash
+cd backend
+uv pip install -r requirements-test.txt
+pytest -v --tb=short                    # Run all tests
+pytest --cov=. --cov-report=term-missing # With coverage
+pytest tests/auth/test_middleware.py     # Run a specific file
+```
+
+### Frontend Tests
+```bash
+cd extension
+npm install
+npx vitest run          # Run all tests
+npx vitest              # Watch mode
+npx vitest run --coverage # With coverage
+```
+
 ### Load Extension in Chrome
 1. Navigate to `chrome://extensions/`
 2. Enable "Developer mode"
@@ -46,7 +64,17 @@ quorum/
 ├── backend/
 │   ├── app.py                    # Flask server entry point
 │   ├── requirements.txt          # Python dependencies
+│   ├── requirements-test.txt     # Test dependencies (pytest, pytest-cov)
+│   ├── pytest.ini                # Pytest configuration
 │   ├── .env                      # Backend secrets (not committed)
+│   ├── tests/                    # Backend test suite (179 tests)
+│   │   ├── conftest.py           # Shared fixtures (app, client, mock_supabase, JWT)
+│   │   ├── test_app.py           # Flask endpoint tests
+│   │   ├── test_schemas.py       # Pydantic model tests
+│   │   ├── auth/                 # Auth module tests
+│   │   ├── billing/              # Billing module tests
+│   │   ├── providers/            # Provider tests (OpenAI, Anthropic, Gemini)
+│   │   └── orchestration/        # Agent, arbiter, orchestrator tests
 │   ├── auth/
 │   │   ├── routes.py             # /auth/google, /auth/me endpoints
 │   │   ├── middleware.py         # require_auth decorator, free-tier enforcement
@@ -71,6 +99,10 @@ quorum/
 │   │   ├── App.jsx               # Main React component (auth state, upgrade polling)
 │   │   ├── main.jsx              # Entry point (imports KaTeX CSS)
 │   │   ├── index.css             # Tailwind + KaTeX styles (responsive sidebar)
+│   │   ├── test-setup.js          # Test setup (chrome API mocks, KaTeX mock)
+│   │   ├── __tests__/             # Frontend test suite (126 tests)
+│   │   │   ├── utils/             # storage, api, auth tests
+│   │   │   └── components/        # All component tests
 │   │   ├── components/
 │   │   │   ├── Header.jsx        # Header with user menu, tier badge, upgrade button
 │   │   │   ├── LoginScreen.jsx   # Google sign-in screen with tier comparison
@@ -260,6 +292,17 @@ VITE_GOOGLE_CLIENT_ID=<web-application-client-id>.apps.googleusercontent.com
 - Backend never persists or logs JWT secrets or provider API keys
 - No server-side storage of prompts/answers by default
 - Free tier limits enforced server-side in `require_auth` middleware
+
+## Testing Requirements
+
+**Important:** When adding new features or changing existing functionality, always update or add corresponding tests:
+
+- **Backend changes:** Add/update tests in `backend/tests/`. Follow the existing patterns in `conftest.py` for fixtures. Mock all external services (Supabase, Stripe, AI providers, Google OAuth). Run `pytest -v --tb=short` to verify.
+- **Frontend changes:** Add/update tests in `extension/src/__tests__/`. Use React Testing Library for components and mock chrome APIs via the setup in `test-setup.js`. Run `npx vitest run` to verify.
+- **New API endpoints:** Add route tests and update middleware tests if auth/tier logic changes.
+- **New components:** Add a corresponding `ComponentName.test.jsx` in `__tests__/components/`.
+- **New utils:** Add a corresponding `utilName.test.js` in `__tests__/utils/`.
+- **Run all tests before committing** to ensure nothing is broken.
 
 ## Documentation Maintenance
 

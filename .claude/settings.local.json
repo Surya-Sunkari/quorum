@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "Bash(source .venv/Scripts/activate)",
+      "Bash(uv pip install pytest pytest-asyncio pytest-cov)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(npm install)",
+      "Bash(npx vitest run)"
     ]
   }
 }
